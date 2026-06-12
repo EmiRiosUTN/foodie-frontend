@@ -1,0 +1,338 @@
+"use client";
+
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { useChatAuth } from "./chat-auth";
+import { chatService, type Chat, type Message } from "./chat-service";
+import { chatSseService } from "./chat-sse-service";
+
+type ChatContextValue = {
+  chats: Chat[];
+  activeChat: Chat | null;
+  messages: Message[];
+  isLoading: boolean;
+  error: string | null;
+  setActiveChat: (chat: Chat) => void;
+  toggleChatMode: (chatId: string) => void;
+  sendMessage: (content: string) => void;
+  sendMediaMessage: (file: File, caption?: string) => void;
+  takeChatControl: (chatId: string) => void;
+  deleteMessage: (messageId: string) => Promise<void>;
+  deleteChat: (chatId: string) => Promise<void>;
+  refreshChats: () => void;
+  loadMoreChats: () => void;
+  hasMore: boolean;
+  isLoadingMore: boolean;
+  navigateToChatByPhone: (phoneNumber: string) => Promise<boolean>;
+  searchChats: (query: string) => void;
+  clearSearch: () => void;
+  isSearching: boolean;
+  searchResults: Chat[];
+  isSearchActive: boolean;
+};
+
+const ChatContext = createContext<ChatContextValue | null>(null);
+const CHAT_PAGE_LIMIT = 50;
+
+export function ChatProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useChatAuth();
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [activeChat, setActiveChat] = useState<Chat | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [skip, setSkip] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<Chat[]>([]);
+  const [isSearchActive, setIsSearchActive] = useState(false);
+
+  const token = typeof window !== "undefined" ? window.localStorage.getItem("auth_token") : "";
+
+  const refreshChats = useCallback(async () => {
+    if (!user) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const clientId = user.role === "admin" ? undefined : user.clientId;
+      const chatList = await chatService.getChats(clientId, 0, CHAT_PAGE_LIMIT);
+      setChats(chatList);
+      setSkip(chatList.length);
+      setHasMore(chatList.length === CHAT_PAGE_LIMIT);
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Error al cargar chats");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user]);
+
+  const loadChatMessages = useCallback(async (chat: Chat) => {
+    try {
+      const chatWithMessages = await chatService.getChatWithMessages(chat.chatId);
+      const sorted = chatWithMessages.messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      setMessages(sorted);
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Error al cargar mensajes");
+    }
+  }, []);
+
+  const handleNewMessage = useCallback(
+    (data: any) => {
+      const { chatId, sender, content, timestamp } = data;
+      if (activeChat && activeChat.chatId === chatId) {
+        loadChatMessages(activeChat);
+      }
+      setChats((current) => {
+        const existing = current.find((chat) => chat.chatId === chatId);
+        if (!existing) {
+          void refreshChats();
+          return current;
+        }
+        return [
+          {
+            ...existing,
+            lastMessage: content,
+            lastMessageTimestamp: timestamp,
+            unreadCount: activeChat?.chatId === chatId || sender !== "user" ? existing.unreadCount : existing.unreadCount + 1
+          },
+          ...current.filter((chat) => chat.chatId !== chatId)
+        ];
+      });
+    },
+    [activeChat, loadChatMessages, refreshChats]
+  );
+
+  const handleChatStatusChanged = useCallback(
+    (data: any) => {
+      const { chatId, chatStatus, statusChangeTime } = data;
+      setChats((current) => current.map((chat) => (chat.chatId === chatId ? { ...chat, chatStatus, statusChangeTime } : chat)));
+      if (activeChat?.chatId === chatId) {
+        setActiveChat((current) => (current ? { ...current, chatStatus, statusChangeTime } : null));
+      }
+    },
+    [activeChat]
+  );
+
+  const handleChatUpdated = useCallback(
+    (data: any) => {
+      setChats((current) => current.map((chat) => (chat.chatId === data.chatId ? { ...chat, ...data } : chat)));
+      if (activeChat?.chatId === data.chatId) {
+        setActiveChat((current) => (current ? { ...current, ...data } : null));
+      }
+    },
+    [activeChat]
+  );
+
+  useEffect(() => {
+    if (!user || !token) return;
+    chatSseService.connect(token);
+    const unsubscribe = chatSseService.subscribe((event) => {
+      if (event.type === "new_message") handleNewMessage(event.data);
+      if (event.type === "chat_status_changed") handleChatStatusChanged(event.data);
+      if (event.type === "chat_updated") handleChatUpdated(event.data);
+    });
+    return () => {
+      unsubscribe();
+      chatSseService.disconnect();
+    };
+  }, [user, token, handleNewMessage, handleChatStatusChanged, handleChatUpdated]);
+
+  useEffect(() => {
+    if (user) void refreshChats();
+  }, [user, refreshChats]);
+
+  useEffect(() => {
+    if (activeChat) {
+      void loadChatMessages(activeChat);
+    } else {
+      setMessages([]);
+    }
+  }, [activeChat, loadChatMessages]);
+
+  const loadMoreChats = useCallback(async () => {
+    if (isLoading || isLoadingMore || !hasMore || !user) return;
+    setIsLoadingMore(true);
+    setError(null);
+    try {
+      const clientId = user.role === "admin" ? undefined : user.clientId;
+      const newChats = await chatService.getChats(clientId, skip, CHAT_PAGE_LIMIT);
+      if (newChats.length > 0) {
+        setChats((current) => [...current, ...newChats]);
+        setSkip((current) => current + newChats.length);
+      }
+      setHasMore(newChats.length === CHAT_PAGE_LIMIT);
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Error al cargar mas chats");
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [hasMore, isLoading, isLoadingMore, skip, user]);
+
+  const toggleChatMode = useCallback(async (chatId: string) => {
+    const chat = chats.find((item) => item.chatId === chatId);
+    if (!chat) return;
+    try {
+      const partialUpdate = await chatService.changeChatStatus(chatId, chat.chatStatus === "bot" ? "human" : "bot");
+      setChats((current) => current.map((item) => (item.chatId === chatId ? { ...item, ...partialUpdate } : item)));
+      if (activeChat?.chatId === chatId) {
+        setActiveChat((current) => (current ? { ...current, ...partialUpdate } : null));
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Error al cambiar modo del chat");
+    }
+  }, [activeChat, chats]);
+
+  const sendMessage = useCallback(async (content: string) => {
+    if (!activeChat) return;
+    try {
+      const newMessage = await chatService.sendMessage(activeChat.chatId, content);
+      setMessages((current) => {
+        if (current.some((message) => message.id === newMessage.id)) return current;
+        return [...current, newMessage].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      });
+      setChats((current) =>
+        current.map((chat) => (chat.chatId === activeChat.chatId ? { ...chat, lastMessage: content, lastMessageTimestamp: newMessage.timestamp } : chat))
+      );
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Error al enviar mensaje");
+    }
+  }, [activeChat]);
+
+  const sendMediaMessage = useCallback(async (file: File, caption?: string) => {
+    if (!activeChat) return;
+    try {
+      const newMessage = await chatService.sendMediaMessage(activeChat.chatId, file, caption);
+      setMessages((current) => {
+        if (current.some((message) => message.id === newMessage.id)) return current;
+        return [...current, newMessage].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      });
+      const displayText = caption || (file ? `Adjunto ${file.name}` : "[archivo]");
+      setChats((current) =>
+        current.map((chat) =>
+          chat.chatId === activeChat.chatId ? { ...chat, lastMessage: displayText, lastMessageTimestamp: newMessage.timestamp } : chat
+        )
+      );
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Error al enviar archivo");
+    }
+  }, [activeChat]);
+
+  const takeChatControl = useCallback(async (chatId: string) => {
+    try {
+      const partialUpdate = await chatService.changeChatStatus(chatId, "human");
+      setChats((current) => current.map((chat) => (chat.chatId === chatId ? { ...chat, ...partialUpdate } : chat)));
+      if (activeChat?.chatId === chatId) {
+        setActiveChat((current) => (current ? { ...current, ...partialUpdate } : null));
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Error al tomar control del chat");
+    }
+  }, [activeChat]);
+
+  const deleteMessage = useCallback(async (messageId: string) => {
+    await chatService.deleteMessage(messageId);
+    setMessages((current) => current.filter((message) => message.id !== messageId && message._id !== messageId));
+  }, []);
+
+  const deleteChat = useCallback(async (chatId: string) => {
+    await chatService.deleteChat(chatId);
+    setChats((current) => current.filter((chat) => chat.chatId !== chatId));
+    if (activeChat?.chatId === chatId) {
+      setActiveChat(null);
+      setMessages([]);
+    }
+  }, [activeChat]);
+
+  const navigateToChatByPhone = useCallback(async (phoneNumber: string) => {
+    const normalize = (value: string) => value.replace(/[\s\-\(\)\+]/g, "");
+    let matchingChat = chats.find((chat) => {
+      const current = normalize(chat.phoneNumber);
+      const incoming = normalize(phoneNumber);
+      return current === incoming || current.endsWith(incoming) || incoming.endsWith(current) || current.includes(incoming) || incoming.includes(current);
+    });
+    if (!matchingChat) {
+      const clientId = user?.role === "admin" ? undefined : user?.clientId;
+      const found = await chatService.findChatByPhone(phoneNumber, clientId);
+      if (found) matchingChat = found;
+    }
+    if (!matchingChat) return false;
+    setActiveChat(matchingChat);
+    setChats((current) => {
+      const exists = current.some((chat) => chat.chatId === matchingChat.chatId);
+      if (exists) {
+        return current.map((chat) => (chat.chatId === matchingChat.chatId ? { ...chat, unreadCount: 0 } : chat));
+      }
+      return [{ ...matchingChat, unreadCount: 0 }, ...current];
+    });
+    return true;
+  }, [chats, user]);
+
+  const searchChats = useCallback(async (query: string) => {
+    if (!user || query.trim().length === 0) {
+      setSearchResults([]);
+      setIsSearchActive(false);
+      return;
+    }
+    setIsSearching(true);
+    setIsSearchActive(true);
+    setError(null);
+    try {
+      const clientId = user.role === "admin" ? undefined : user.clientId;
+      const results = await chatService.searchChats(query, clientId);
+      setSearchResults(results);
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Error al buscar chats");
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  }, [user]);
+
+  const clearSearch = useCallback(() => {
+    setSearchResults([]);
+    setIsSearchActive(false);
+    setIsSearching(false);
+  }, []);
+
+  const handleSetActiveChat = useCallback((chat: Chat) => {
+    setActiveChat(chat);
+    setChats((current) => current.map((item) => (item.chatId === chat.chatId ? { ...item, unreadCount: 0 } : item)));
+  }, []);
+
+  return (
+    <ChatContext.Provider
+      value={{
+        chats,
+        activeChat,
+        messages,
+        isLoading,
+        error,
+        setActiveChat: handleSetActiveChat,
+        toggleChatMode,
+        sendMessage,
+        sendMediaMessage,
+        takeChatControl,
+        deleteMessage,
+        deleteChat,
+        refreshChats,
+        loadMoreChats,
+        hasMore,
+        isLoadingMore,
+        navigateToChatByPhone,
+        searchChats,
+        clearSearch,
+        isSearching,
+        searchResults,
+        isSearchActive
+      }}
+    >
+      {children}
+    </ChatContext.Provider>
+  );
+}
+
+export function useChat() {
+  const context = useContext(ChatContext);
+  if (!context) throw new Error("useChat must be used within ChatProvider");
+  return context;
+}
