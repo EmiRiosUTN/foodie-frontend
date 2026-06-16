@@ -454,7 +454,11 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function createReservation() {
-    if (!selectedBranchId || !selectedRoomId) return;
+    if (!selectedBranchId || !selectedRoomId) {
+      const message = "Selecciona una sucursal y un salon antes de crear la reserva";
+      setFeedback(message);
+      throw new Error(message);
+    }
     try {
       await api("/restaurant/reservations", {
         method: "POST",
@@ -477,7 +481,9 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       await loadOperationalData();
       setFeedback("Reserva creada");
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "No se pudo crear la reserva");
+      const message = error instanceof Error ? error.message : "No se pudo crear la reserva";
+      setFeedback(message);
+      throw new Error(message);
     }
   }
 

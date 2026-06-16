@@ -22,6 +22,7 @@ export function ReservasPage() {
   } = useWorkspace();
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [formError, setFormError] = useState("");
   const zonePills = roomDetail?.zones || [];
 
   const sortedReservations = useMemo(
@@ -34,8 +35,25 @@ export function ReservasPage() {
   );
 
   const handleCreate = async () => {
-    await createReservation();
-    setCreateOpen(false);
+    setFormError("");
+
+    if (!reservationForm.fullName.trim() || !reservationForm.phone.trim() || !reservationForm.email.trim()) {
+      setFormError("Completa nombre, telefono y email para crear la reserva.");
+      return;
+    }
+
+    const partySize = Number(reservationForm.partySize);
+    if (!Number.isInteger(partySize) || partySize < 1) {
+      setFormError("Ingresa una cantidad valida de comensales.");
+      return;
+    }
+
+    try {
+      await createReservation();
+      setCreateOpen(false);
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "No se pudo crear la reserva.");
+    }
   };
 
   return (
@@ -52,7 +70,10 @@ export function ReservasPage() {
             </div>
             <button
               type="button"
-              onClick={() => setCreateOpen(true)}
+              onClick={() => {
+                setFormError("");
+                setCreateOpen(true);
+              }}
               className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-orange px-5 py-3 text-sm font-medium text-white"
             >
               <Plus className="h-4 w-4" />
@@ -189,7 +210,10 @@ export function ReservasPage() {
 
       <AppModal
         open={createOpen}
-        onClose={() => setCreateOpen(false)}
+        onClose={() => {
+          setFormError("");
+          setCreateOpen(false);
+        }}
         title="Nueva reserva"
         description="Crea una reserva manual para el turno actual usando la asignacion automatica del backend."
         widthClassName="max-w-2xl"
@@ -209,23 +233,52 @@ export function ReservasPage() {
         }
       >
         <div className="grid gap-4 md:grid-cols-2">
-          {[
-            ["fullName", "Nombre del cliente"],
-            ["phone", "Telefono"],
-            ["email", "Email"],
-            ["partySize", "Comensales"],
-            ["birthday", "Cumpleanos AAAA-MM-DD"],
-            ["preferredTags", "Tags separados por coma"]
-          ].map(([key, label]) => (
-            <label key={key} className={`space-y-2 text-sm text-brand-ink ${key === "preferredTags" ? "md:col-span-2" : ""}`}>
-              <span className="font-medium">{label}</span>
-              <input
-                value={reservationForm[key as keyof typeof reservationForm]}
-                onChange={(event) => setReservationForm((current) => ({ ...current, [key]: event.target.value }))}
-                className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
-              />
-            </label>
-          ))}
+          <label className="space-y-2 text-sm text-brand-ink">
+            <span className="font-medium">Nombre del cliente</span>
+            <input
+              value={reservationForm.fullName}
+              onChange={(event) => setReservationForm((current) => ({ ...current, fullName: event.target.value }))}
+              className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
+            />
+          </label>
+          <label className="space-y-2 text-sm text-brand-ink">
+            <span className="font-medium">Telefono</span>
+            <input
+              value={reservationForm.phone}
+              onChange={(event) => setReservationForm((current) => ({ ...current, phone: event.target.value }))}
+              className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
+            />
+          </label>
+          <label className="space-y-2 text-sm text-brand-ink">
+            <span className="font-medium">Email</span>
+            <input
+              type="email"
+              value={reservationForm.email}
+              onChange={(event) => setReservationForm((current) => ({ ...current, email: event.target.value }))}
+              className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
+            />
+          </label>
+          <label className="space-y-2 text-sm text-brand-ink">
+            <span className="font-medium">Comensales</span>
+            <input
+              type="number"
+              min={1}
+              step={1}
+              inputMode="numeric"
+              value={reservationForm.partySize}
+              onChange={(event) => setReservationForm((current) => ({ ...current, partySize: event.target.value }))}
+              className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
+            />
+          </label>
+          <label className="space-y-2 text-sm text-brand-ink md:col-span-2">
+            <span className="font-medium">Cumpleanos</span>
+            <input
+              type="date"
+              value={reservationForm.birthday}
+              onChange={(event) => setReservationForm((current) => ({ ...current, birthday: event.target.value }))}
+              className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
+            />
+          </label>
           <label className="space-y-2 text-sm text-brand-ink md:col-span-2">
             <span className="font-medium">Preferencia de zona</span>
             <FoodieSelect
@@ -249,6 +302,11 @@ export function ReservasPage() {
               className="h-28 w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
             />
           </label>
+          {formError ? (
+            <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 md:col-span-2">
+              {formError}
+            </p>
+          ) : null}
         </div>
       </AppModal>
     </WorkspaceShell>
