@@ -47,6 +47,10 @@ export function ReservasPage() {
       setFormError("Ingresa una cantidad valida de comensales.");
       return;
     }
+    if (!reservationForm.serviceTime) {
+      setFormError("Ingresa el horario de la reserva.");
+      return;
+    }
 
     try {
       await createReservation();
@@ -131,7 +135,7 @@ export function ReservasPage() {
                       </p>
                       <p className="mt-2 inline-flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-neutral-400">
                         <Users className="h-3.5 w-3.5" />
-                        {reservation.partySize} cubiertos
+                        {reservation.partySize} cubiertos - {reservation.serviceTime}
                       </p>
                     </div>
                     <div className="min-w-0 text-sm text-neutral-500">
@@ -169,7 +173,7 @@ export function ReservasPage() {
                       <p className="truncate text-base font-semibold text-brand-ink">{reservation.fullName}</p>
                       <p className="mt-1 text-sm text-neutral-500">{reservation.room.name}</p>
                       <p className="mt-2 text-xs uppercase tracking-[0.18em] text-neutral-400">
-                        {reservation.code} - {reservation.partySize} cubiertos
+                        {reservation.code} - {reservation.partySize} cubiertos - {reservation.serviceTime}
                       </p>
                     </div>
                     <div className="shrink-0 text-xs font-medium text-neutral-500">{reservation.status}</div>
@@ -215,7 +219,7 @@ export function ReservasPage() {
           setCreateOpen(false);
         }}
         title="Nueva reserva"
-        description="Crea una reserva manual para el turno actual usando la asignacion automatica del backend."
+        description="Crea una reserva manual con horario real; el sistema asigna el turno automaticamente."
         widthClassName="max-w-2xl"
         footer={
           <>
@@ -280,15 +284,13 @@ export function ReservasPage() {
             />
           </label>
           <label className="space-y-2 text-sm text-brand-ink">
-            <span className="font-medium">Turno</span>
-            <FoodieSelect
-              value={selectedTurn}
-              onChange={(event) => setSelectedTurn(event.target.value as "mediodia" | "noche")}
-              className="font-medium"
-            >
-              <option value="mediodia">Mediodia</option>
-              <option value="noche">Noche</option>
-            </FoodieSelect>
+            <span className="font-medium">Horario</span>
+            <input
+              type="time"
+              value={reservationForm.serviceTime}
+              onChange={(event) => setReservationForm((current) => ({ ...current, serviceTime: event.target.value }))}
+              className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
+            />
           </label>
           <label className="space-y-2 text-sm text-brand-ink md:col-span-2">
             <span className="font-medium">Cumpleanos</span>

@@ -131,6 +131,7 @@ export type Reservation = {
   status: string;
   turn: "mediodia" | "noche";
   serviceDate: string;
+  serviceTime: string;
   room: { id: string; name: string };
   customer?: { id: string; fullName: string; tags: Array<{ id: string; label: string }> } | null;
   tables: Array<{ table: { id: string; label: string; seats: number } }>;
@@ -191,6 +192,7 @@ export type CreateReservationForm = {
   phone: string;
   email: string;
   partySize: string;
+  serviceTime: string;
   preferredZone: string;
   preferredTags: string;
   birthday: string;
@@ -202,6 +204,7 @@ export const initialReservationForm: CreateReservationForm = {
   phone: "",
   email: "",
   partySize: "2",
+  serviceTime: "20:00",
   preferredZone: "",
   preferredTags: "",
   birthday: "",

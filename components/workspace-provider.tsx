@@ -470,7 +470,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
           email: reservationForm.email,
           partySize: Number(reservationForm.partySize),
           serviceDate: selectedDate,
-          turn: selectedTurn,
+          serviceTime: reservationForm.serviceTime,
           preferredZone: reservationForm.preferredZone || undefined,
           preferredTags: reservationForm.preferredTags.split(",").map((item) => item.trim()).filter(Boolean),
           birthday: reservationForm.birthday || undefined,
