@@ -132,6 +132,7 @@ export type Reservation = {
   turn: "mediodia" | "noche";
   serviceDate: string;
   serviceTime: string;
+  branch?: { id: string; name: string };
   room: { id: string; name: string };
   customer?: { id: string; fullName: string; tags: Array<{ id: string; label: string }> } | null;
   tables: Array<{ table: { id: string; label: string; seats: number } }>;

@@ -8,7 +8,17 @@ import { WorkspaceShell } from "./workspace-shell";
 import { useWorkspace } from "./workspace-provider";
 import type { Room } from "../lib/types";
 
-type EditorKind = "wall" | "window" | "column" | "corridor" | "screen" | "round" | "square" | "rectangular";
+type EditorKind =
+  | "wall"
+  | "window"
+  | "column"
+  | "corridor"
+  | "screen"
+  | "stairs"
+  | "bathroom"
+  | "round"
+  | "square"
+  | "rectangular";
 
 type EditorItem = {
   id: string;
@@ -96,7 +106,9 @@ const paletteItems: Array<{
   { kind: "window", label: "Ventana", width: 160, height: 14 },
   { kind: "column", label: "Columna", width: 58, height: 58 },
   { kind: "corridor", label: "Pasillo", width: 220, height: 92 },
-  { kind: "screen", label: "Televisor / Proyector", width: 160, height: 92 }
+  { kind: "screen", label: "Televisor / Proyector", width: 160, height: 92 },
+  { kind: "stairs", label: "Escalera", width: 132, height: 112 },
+  { kind: "bathroom", label: "Baño", width: 112, height: 112 }
 ];
 
 function clamp(value: number, min: number, max: number) {
@@ -106,7 +118,8 @@ function clamp(value: number, min: number, max: number) {
 function shapeClass(kind: EditorKind) {
   if (kind === "round") return "rounded-full";
   if (kind === "square" || kind === "rectangular") return "rounded-[22px]";
-  if (kind === "column") return "rounded-[18px]";
+  if (kind === "column" || kind === "bathroom") return "rounded-[18px]";
+  if (kind === "stairs" || kind === "corridor") return "rounded-[12px]";
   return "rounded-sm";
 }
 
@@ -122,6 +135,10 @@ function staticItemClass(kind: EditorKind) {
       return "bg-[#F6F2EE] border-[#DDD1C5]";
     case "screen":
       return "bg-[#1B2431] border-[#475569]";
+    case "stairs":
+      return "bg-[repeating-linear-gradient(0deg,#F8EFE4_0,#F8EFE4_13px,#C98B50_14px,#C98B50_18px)] border-[#B77943]";
+    case "bathroom":
+      return "bg-[#E8F7F4] border-[#5AAEA1]";
     default:
       return "border-[#1F1F21] bg-[#FFF9F5]";
   }
@@ -160,6 +177,7 @@ function PalettePreview({
     <div className="flex items-center gap-4">
       <div className={`flex shrink-0 items-center justify-center border-2 ${shapeClass(kind)} ${staticItemClass(kind)} ${width} ${height}`}>
         {seats ? <span className="text-[10px] font-semibold text-brand-ink">{seats}</span> : null}
+        {kind === "bathroom" ? <span className="text-[10px] font-black uppercase tracking-[0.12em] text-[#237C72]">WC</span> : null}
       </div>
       <div>
         <p className="text-sm font-semibold text-brand-ink">{label}</p>
@@ -188,12 +206,14 @@ function isLinearResize(_kind: EditorKind) {
 function minimumWidth(kind: EditorKind) {
   if (kind === "column") return 40;
   if (kind === "wall" || kind === "window") return 80;
+  if (kind === "stairs" || kind === "bathroom") return 64;
   return 60;
 }
 
 function minimumHeight(kind: EditorKind) {
   if (kind === "wall") return 16;
   if (kind === "window") return 14;
+  if (kind === "stairs" || kind === "bathroom") return 64;
   return 40;
 }
 
@@ -273,7 +293,7 @@ function getRoomMetrics(room: Room) {
 
 function buildEditorItems(roomDetail: NonNullable<ReturnType<typeof useWorkspace>["roomDetail"]>) {
   const fixedItems: EditorItem[] = roomDetail.floorPlanItems
-    .filter((item) => ["wall", "window", "column", "corridor", "screen"].includes(item.kind))
+    .filter((item) => ["wall", "window", "column", "corridor", "screen", "stairs", "bathroom"].includes(item.kind))
     .map((item) => ({
       id: item.id,
       kind: item.kind as EditorKind,

@@ -1,10 +1,11 @@
 "use client";
 
-import { CalendarDays, Mail, Pencil, Phone, Plus, Tag, Trash2, UserRound } from "lucide-react";
+import { CalendarDays, Download, Mail, Pencil, Phone, Plus, Search, Tag, Trash2, UserRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { Customer, CustomerDetail } from "../lib/types";
 import { AppModal } from "./app-modal";
 import { ConfirmDialog } from "./confirm-dialog";
+import { FoodieSelect } from "./foodie-select";
 import { WorkspaceShell } from "./workspace-shell";
 import { useWorkspace } from "./workspace-provider";
 
@@ -31,6 +32,34 @@ function formatDate(value?: string | null) {
   return value.slice(0, 10);
 }
 
+function csvEscape(value: unknown) {
+  const text = String(value ?? "");
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function downloadCsv(filename: string, headers: string[], rows: Array<Array<unknown>>) {
+  const csv = [headers.map(csvEscape).join(","), ...rows.map((row) => row.map(csvEscape).join(","))].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function daysUntilBirthday(value?: string | null) {
+  if (!value) return Number.POSITIVE_INFINITY;
+  const source = new Date(value);
+  if (Number.isNaN(source.getTime())) return Number.POSITIVE_INFINITY;
+  const today = new Date();
+  const birthday = new Date(today.getFullYear(), source.getMonth(), source.getDate());
+  if (birthday < new Date(today.getFullYear(), today.getMonth(), today.getDate())) {
+    birthday.setFullYear(today.getFullYear() + 1);
+  }
+  return Math.ceil((birthday.getTime() - today.getTime()) / 86_400_000);
+}
+
 function toFormState(customer?: Customer | CustomerDetail | null): CustomerFormState {
   if (!customer) return emptyForm;
   return {
@@ -54,17 +83,60 @@ export function ClientesPage() {
   const [form, setForm] = useState<CustomerFormState>(emptyForm);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+  const [search, setSearch] = useState("");
+  const [sortMode, setSortMode] = useState<"reservations" | "birthday" | "name" | "recent">("reservations");
 
-  const sortedCustomers = useMemo(
-    () =>
-      [...customers].sort((left, right) => {
-        if (right.reservationCount !== left.reservationCount) {
-          return right.reservationCount - left.reservationCount;
-        }
+  const sortedCustomers = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    const filtered = customers.filter((customer) => {
+      if (!term) return true;
+      return [
+        customer.fullName,
+        customer.email || "",
+        customer.phone || "",
+        customer.notes || "",
+        customer.tags.map((tag) => tag.label).join(" ")
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(term);
+    });
+
+    return filtered.sort((left, right) => {
+      if (sortMode === "birthday") {
+        return daysUntilBirthday(left.birthday) - daysUntilBirthday(right.birthday);
+      }
+      if (sortMode === "name") {
         return left.fullName.localeCompare(right.fullName);
-      }),
-    [customers]
-  );
+      }
+      if (sortMode === "recent") {
+        const leftDate = left.reservations[0]?.serviceDate || "";
+        const rightDate = right.reservations[0]?.serviceDate || "";
+        return rightDate.localeCompare(leftDate);
+      }
+      if (right.reservationCount !== left.reservationCount) {
+        return right.reservationCount - left.reservationCount;
+      }
+      return left.fullName.localeCompare(right.fullName);
+    });
+  }, [customers, search, sortMode]);
+
+  const exportCustomersCsv = () => {
+    downloadCsv(
+      "clientes.csv",
+      ["nombre", "telefono", "email", "cumpleanos", "reservas", "ultima_reserva", "tags", "notas"],
+      sortedCustomers.map((customer) => [
+        customer.fullName,
+        customer.phone || "",
+        customer.email || "",
+        formatDate(customer.birthday),
+        customer.reservationCount,
+        customer.reservations[0] ? formatDate(customer.reservations[0].serviceDate) : "",
+        customer.tags.map((tag) => tag.label).join(" | "),
+        customer.notes || ""
+      ])
+    );
+  };
 
   useEffect(() => {
     if (!selectedCustomerId || !detailOpen) return;
@@ -143,19 +215,59 @@ export function ClientesPage() {
       description="Administra la base de clientes del restaurante con una vista clara, historial y acciones rapidas."
     >
       <section className="overflow-hidden rounded-[26px] border border-brand-line bg-white">
-        <div className="flex flex-col gap-4 border-b border-brand-line px-5 py-5 md:flex-row md:items-center md:justify-between md:px-6">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-orange">Base de clientes</p>
-            <h2 className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-brand-ink">Listado de clientes</h2>
+        <div className="flex flex-col gap-4 border-b border-brand-line px-5 py-5 md:px-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-orange">Base de clientes</p>
+              <h2 className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-brand-ink">Listado de clientes</h2>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={exportCustomersCsv}
+                disabled={!sortedCustomers.length}
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-brand-line px-5 py-3 text-sm font-medium text-brand-ink disabled:opacity-50"
+              >
+                <Download className="h-4 w-4" />
+                Descargar CSV
+              </button>
+              <button
+                type="button"
+                onClick={openCreateModal}
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-orange px-5 py-3 text-sm font-medium text-white"
+              >
+                <Plus className="h-4 w-4" />
+                Agregar cliente
+              </button>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={openCreateModal}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-orange px-5 py-3 text-sm font-medium text-white"
-          >
-            <Plus className="h-4 w-4" />
-            Agregar cliente
-          </button>
+
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_240px] md:items-end">
+            <label className="space-y-2 text-sm text-brand-ink">
+              <span className="font-medium">Buscar cliente</span>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Nombre, telefono, email, tag o nota"
+                  className="w-full rounded-2xl border border-brand-line px-10 py-3 outline-none focus:border-brand-orange"
+                />
+              </div>
+            </label>
+            <label className="space-y-2 text-sm text-brand-ink">
+              <span className="font-medium">Ordenar por</span>
+              <FoodieSelect
+                value={sortMode}
+                onChange={(event) => setSortMode(event.target.value as typeof sortMode)}
+              >
+                <option value="reservations">Mayor cantidad de reservas</option>
+                <option value="birthday">Cumpleanos mas proximos</option>
+                <option value="recent">Ultima reserva</option>
+                <option value="name">Nombre</option>
+              </FoodieSelect>
+            </label>
+          </div>
         </div>
 
         {sortedCustomers.length ? (

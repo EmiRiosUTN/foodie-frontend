@@ -76,6 +76,28 @@ function renderFixedItem(item: {
     return <div key={item.id} className="absolute rounded-[12px] border border-[#DDD1C5] bg-[#ECE5DC]" style={baseStyle} />;
   }
 
+  if (item.kind === "stairs") {
+    return (
+      <div
+        key={item.id}
+        className="absolute rounded-[12px] border border-[#B77943] bg-[repeating-linear-gradient(0deg,#F8EFE4_0,#F8EFE4_13px,#C98B50_14px,#C98B50_18px)]"
+        style={baseStyle}
+      />
+    );
+  }
+
+  if (item.kind === "bathroom") {
+    return (
+      <div
+        key={item.id}
+        className="absolute flex items-center justify-center rounded-[18px] border border-[#5AAEA1] bg-[#E8F7F4] text-[10px] font-black uppercase tracking-[0.12em] text-[#237C72]"
+        style={baseStyle}
+      >
+        WC
+      </div>
+    );
+  }
+
   return <div key={item.id} className="absolute rounded-sm bg-[#E9DED2]" style={baseStyle} />;
 }
 

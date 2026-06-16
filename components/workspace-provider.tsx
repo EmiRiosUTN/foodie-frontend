@@ -88,6 +88,14 @@ type WorkspaceContextValue = {
   ) => Promise<void>;
   deleteCustomer: (customerId: string) => Promise<void>;
   loadCustomerDetail: (customerId: string) => Promise<CustomerDetail>;
+  loadReservationHistory: (filters: {
+    branchId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    turn?: "mediodia" | "noche" | "all";
+    status?: string;
+    search?: string;
+  }) => Promise<Reservation[]>;
   loadPlatformRestaurantDetail: (restaurantId: string) => Promise<PlatformRestaurantDetail>;
   createPlatformRestaurant: (input: {
     restaurantName: string;
@@ -586,6 +594,21 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     return api<CustomerDetail>(`/restaurant/customers/${customerId}`);
   }
 
+  async function loadReservationHistory(filters: {
+    branchId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    turn?: "mediodia" | "noche" | "all";
+    status?: string;
+    search?: string;
+  }) {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) params.set(key, value);
+    });
+    return api<Reservation[]>(`/restaurant/reservations/history?${params.toString()}`);
+  }
+
   async function loadPlatformRestaurantDetail(restaurantId: string) {
     return api<PlatformRestaurantDetail>(`/platform/restaurants/${restaurantId}`);
   }
@@ -710,6 +733,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       updateCustomer,
       deleteCustomer,
       loadCustomerDetail,
+      loadReservationHistory,
       loadPlatformRestaurantDetail,
       createPlatformRestaurant,
       createPlatformRestaurantUser,

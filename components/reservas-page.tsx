@@ -1,11 +1,33 @@
 "use client";
 
-import { CalendarDays, CheckCircle2, Clock3, Plus, Ticket, Users } from "lucide-react";
+import { CalendarDays, CheckCircle2, Clock3, Download, Plus, Search, Users } from "lucide-react";
 import { useMemo, useState } from "react";
+import type { Reservation } from "../lib/types";
 import { AppModal } from "./app-modal";
 import { FoodieSelect } from "./foodie-select";
 import { WorkspaceShell } from "./workspace-shell";
 import { useWorkspace } from "./workspace-provider";
+
+function csvEscape(value: unknown) {
+  const text = String(value ?? "");
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function downloadCsv(filename: string, headers: string[], rows: Array<Array<unknown>>) {
+  const csv = [headers.map(csvEscape).join(","), ...rows.map((row) => row.map(csvEscape).join(","))].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return "";
+  return value.slice(0, 10);
+}
 
 export function ReservasPage() {
   const {
@@ -18,11 +40,24 @@ export function ReservasPage() {
     selectedDate,
     selectedTurn,
     setSelectedDate,
-    setSelectedTurn
+    setSelectedTurn,
+    selectedBranchId,
+    loadReservationHistory
   } = useWorkspace();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [formError, setFormError] = useState("");
+  const [activeView, setActiveView] = useState<"turno" | "historico">("turno");
+  const [historyFilters, setHistoryFilters] = useState({
+    dateFrom: selectedDate,
+    dateTo: selectedDate,
+    turn: "all" as "all" | "mediodia" | "noche",
+    status: "all",
+    search: ""
+  });
+  const [historyRows, setHistoryRows] = useState<Reservation[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
   const zonePills = roomDetail?.zones || [];
 
   const sortedReservations = useMemo(
@@ -60,11 +95,75 @@ export function ReservasPage() {
     }
   };
 
+  const handleLoadHistory = async () => {
+    setHistoryLoading(true);
+    setHistoryError("");
+    try {
+      const rows = await loadReservationHistory({
+        branchId: selectedBranchId || undefined,
+        dateFrom: historyFilters.dateFrom,
+        dateTo: historyFilters.dateTo,
+        turn: historyFilters.turn,
+        status: historyFilters.status,
+        search: historyFilters.search
+      });
+      setHistoryRows(rows);
+    } catch (error) {
+      setHistoryError(error instanceof Error ? error.message : "No se pudo cargar el historico.");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const exportReservationsCsv = () => {
+    downloadCsv(
+      `reservas-${historyFilters.dateFrom || "inicio"}-${historyFilters.dateTo || "fin"}.csv`,
+      ["codigo", "fecha", "horario", "turno", "estado", "cliente", "telefono", "email", "comensales", "sucursal", "salon", "mesas", "notas"],
+      historyRows.map((reservation) => [
+        reservation.code,
+        formatDate(reservation.serviceDate),
+        reservation.serviceTime,
+        reservation.turn,
+        reservation.status,
+        reservation.fullName,
+        reservation.phone,
+        reservation.email,
+        reservation.partySize,
+        reservation.branch?.name || "",
+        reservation.room.name,
+        reservation.tables.map((item) => item.table.label).join(" | "),
+        (reservation as Reservation & { notes?: string | null }).notes || ""
+      ])
+    );
+  };
+
   return (
     <WorkspaceShell
       title="Reservas"
       description="Opera el turno con una vista limpia de reservas y acciones puntuales, sin formularios permanentes expuestos."
     >
+      <div className="flex w-full max-w-md rounded-full border border-brand-line bg-white p-1">
+        <button
+          type="button"
+          onClick={() => setActiveView("turno")}
+          className={`flex-1 rounded-full px-4 py-2.5 text-sm font-semibold transition ${
+            activeView === "turno" ? "bg-brand-orange text-white shadow-[0_10px_24px_rgba(255,90,0,0.22)]" : "text-neutral-500 hover:text-brand-ink"
+          }`}
+        >
+          Turno
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveView("historico")}
+          className={`flex-1 rounded-full px-4 py-2.5 text-sm font-semibold transition ${
+            activeView === "historico" ? "bg-brand-orange text-white shadow-[0_10px_24px_rgba(255,90,0,0.22)]" : "text-neutral-500 hover:text-brand-ink"
+          }`}
+        >
+          Historico
+        </button>
+      </div>
+
+      {activeView === "turno" ? (
       <section className="overflow-hidden rounded-[26px] border border-brand-line bg-white">
         <div className="flex flex-col gap-4 border-b border-brand-line px-5 py-5 md:px-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -211,6 +310,127 @@ export function ReservasPage() {
           </div>
         )}
       </section>
+      ) : null}
+
+      {activeView === "historico" ? (
+      <section className="overflow-hidden rounded-[26px] border border-brand-line bg-white">
+        <div className="flex flex-col gap-4 border-b border-brand-line px-5 py-5 md:px-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-orange">Historico</p>
+              <h2 className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-brand-ink">Reservas por rango</h2>
+            </div>
+            <button
+              type="button"
+              onClick={exportReservationsCsv}
+              disabled={!historyRows.length}
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-brand-line px-5 py-3 text-sm font-medium text-brand-ink disabled:opacity-50"
+            >
+              <Download className="h-4 w-4" />
+              Descargar CSV
+            </button>
+          </div>
+
+          <div className="grid gap-3 lg:grid-cols-[160px_160px_160px_180px_minmax(180px,1fr)_140px] lg:items-end">
+            <label className="space-y-2 text-sm text-brand-ink">
+              <span className="font-medium">Desde</span>
+              <input
+                type="date"
+                value={historyFilters.dateFrom}
+                onChange={(event) => setHistoryFilters((current) => ({ ...current, dateFrom: event.target.value }))}
+                className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
+              />
+            </label>
+            <label className="space-y-2 text-sm text-brand-ink">
+              <span className="font-medium">Hasta</span>
+              <input
+                type="date"
+                value={historyFilters.dateTo}
+                onChange={(event) => setHistoryFilters((current) => ({ ...current, dateTo: event.target.value }))}
+                className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
+              />
+            </label>
+            <label className="space-y-2 text-sm text-brand-ink">
+              <span className="font-medium">Turno</span>
+              <FoodieSelect
+                value={historyFilters.turn}
+                onChange={(event) => setHistoryFilters((current) => ({ ...current, turn: event.target.value as "all" | "mediodia" | "noche" }))}
+              >
+                <option value="all">Todos</option>
+                <option value="mediodia">Mediodia</option>
+                <option value="noche">Noche</option>
+              </FoodieSelect>
+            </label>
+            <label className="space-y-2 text-sm text-brand-ink">
+              <span className="font-medium">Estado</span>
+              <FoodieSelect
+                value={historyFilters.status}
+                onChange={(event) => setHistoryFilters((current) => ({ ...current, status: event.target.value }))}
+              >
+                <option value="all">Todos</option>
+                <option value="confirmed">Confirmada</option>
+                <option value="pending">Pendiente</option>
+                <option value="seated">Sentada</option>
+                <option value="completed">Completada</option>
+                <option value="cancelled">Cancelada</option>
+                <option value="no_show">No show</option>
+              </FoodieSelect>
+            </label>
+            <label className="space-y-2 text-sm text-brand-ink">
+              <span className="font-medium">Buscar</span>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+                <input
+                  value={historyFilters.search}
+                  onChange={(event) => setHistoryFilters((current) => ({ ...current, search: event.target.value }))}
+                  placeholder="Cliente, telefono, email o codigo"
+                  className="w-full rounded-2xl border border-brand-line px-10 py-3 outline-none focus:border-brand-orange"
+                />
+              </div>
+            </label>
+            <button
+              type="button"
+              onClick={() => void handleLoadHistory()}
+              className="rounded-full bg-brand-orange px-5 py-3 text-sm font-medium text-white"
+            >
+              {historyLoading ? "Buscando..." : "Buscar"}
+            </button>
+          </div>
+          {historyError ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{historyError}</p> : null}
+        </div>
+
+        <div className="overflow-x-auto">
+          <div className="min-w-[920px]">
+            <div className="grid grid-cols-[120px_120px_minmax(0,1.5fr)_110px_110px_minmax(0,1fr)_130px] gap-4 px-6 py-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
+              <span>Fecha</span>
+              <span>Hora</span>
+              <span>Cliente</span>
+              <span>Comensales</span>
+              <span>Estado</span>
+              <span>Salon</span>
+              <span>Codigo</span>
+            </div>
+            <div className="divide-y divide-brand-line">
+              {historyRows.length ? (
+                historyRows.map((reservation) => (
+                  <div key={reservation.id} className="grid grid-cols-[120px_120px_minmax(0,1.5fr)_110px_110px_minmax(0,1fr)_130px] gap-4 px-6 py-4 text-sm">
+                    <span className="text-neutral-500">{formatDate(reservation.serviceDate)}</span>
+                    <span className="font-semibold text-brand-ink">{reservation.serviceTime}</span>
+                    <span className="min-w-0 truncate font-semibold text-brand-ink">{reservation.fullName}</span>
+                    <span className="text-neutral-500">{reservation.partySize}</span>
+                    <span className="text-neutral-500">{reservation.status}</span>
+                    <span className="min-w-0 truncate text-neutral-500">{reservation.room.name}</span>
+                    <span className="font-semibold text-brand-ink">{reservation.code}</span>
+                  </div>
+                ))
+              ) : (
+                <div className="px-6 py-10 text-center text-sm text-neutral-500">Busca un rango para ver y exportar reservas historicas.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+      ) : null}
 
       <AppModal
         open={createOpen}
