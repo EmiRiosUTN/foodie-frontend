@@ -1,6 +1,7 @@
 export interface ChatClientFeatureFlags {
   data: boolean;
   campaigns: boolean;
+  whatsappCampaigns: boolean;
   templates: boolean;
   advisors: boolean;
   advisorMetrics: boolean;
@@ -16,6 +17,7 @@ export type ChatClientFeatureKey = keyof ChatClientFeatureFlags;
 export const DEFAULT_CHAT_FEATURE_FLAGS: ChatClientFeatureFlags = {
   data: true,
   campaigns: true,
+  whatsappCampaigns: true,
   templates: true,
   advisors: true,
   advisorMetrics: true,

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AppModal } from "../app-modal";
 import { FoodieSelect } from "../foodie-select";
+import { logChatActivity, serializeChatError } from "./chat-activity-service";
 import { chatTemplateService, type WhatsAppTemplate } from "./chat-template-service";
 
 function getParameterCount(template: WhatsAppTemplate) {
@@ -68,11 +69,29 @@ export function ChatSendTemplateModal({
 
   const handleSend = async () => {
     if (!selectedTemplateId) return;
+    const sentParameters = parameters.filter((parameter) => parameter.trim() !== "");
     try {
       setIsSending(true);
-      await chatTemplateService.sendTemplateToChat(selectedTemplateId, {
+      const response = await chatTemplateService.sendTemplateToChat(selectedTemplateId, {
         chatId,
-        parameters: parameters.filter((parameter) => parameter.trim() !== "")
+        parameters: sentParameters
+      });
+      void logChatActivity({
+        action: "template.sent",
+        status: "success",
+        chatId,
+        contactName: chatName,
+        messageType: "template",
+        messageContent: selectedTemplate ? chatTemplateService.getTemplatePreview(selectedTemplate) : null,
+        templateId: selectedTemplateId,
+        templateName: selectedTemplate?.name || null,
+        templateParameters: sentParameters,
+        externalResponse: response,
+        metadata: {
+          chatName,
+          templateCategory: selectedTemplate?.category || null,
+          templateLanguage: selectedTemplate?.language || null
+        }
       });
       toast.success("Plantilla enviada", {
         description: "El chat paso automaticamente a modo manual"
@@ -82,6 +101,25 @@ export function ChatSendTemplateModal({
       setSelectedTemplateId(null);
       setParameters([]);
     } catch (err: any) {
+      const serializedError = serializeChatError(err);
+      void logChatActivity({
+        action: "template.send_failed",
+        status: "error",
+        chatId,
+        contactName: chatName,
+        messageType: "template",
+        messageContent: selectedTemplate ? chatTemplateService.getTemplatePreview(selectedTemplate) : null,
+        templateId: selectedTemplateId,
+        templateName: selectedTemplate?.name || null,
+        templateParameters: sentParameters,
+        errorMessage: serializedError.message,
+        metadata: {
+          chatName,
+          templateCategory: selectedTemplate?.category || null,
+          templateLanguage: selectedTemplate?.language || null,
+          error: serializedError
+        }
+      });
       toast.error("No se pudo enviar la plantilla", {
         description: err.response?.data?.msg || err.response?.data?.message || "Error inesperado"
       });

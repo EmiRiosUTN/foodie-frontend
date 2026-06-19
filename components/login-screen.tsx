@@ -17,7 +17,7 @@ export function LoginScreen() {
           }}
         >
           <div className="mb-6 text-center">
-            <Image src="/brand/logo-primary.png" alt="Foodie AI" width={170} height={48} className="mx-auto" priority />
+            <Image src="/brand/logo-primary.png" alt="Foodie AI" width={210} height={70} className="mx-auto h-auto w-[210px]" priority />
           </div>
           <div className="mb-5">
             <h2 className="text-xl font-semibold tracking-normal text-brand-ink">Acceso</h2>

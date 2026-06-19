@@ -5,17 +5,23 @@ import { usePathname, useRouter } from "next/navigation";
 import type {
   AuthResponse,
   Bootstrap,
+  ChatActivityLog,
   CreateReservationForm,
   Customer,
   CustomerDetail,
   PlatformRestaurantDetail,
   PlatformRestaurantSummary,
   Reservation,
+  RestaurantActivityLog,
+  RestaurantStaffUserDetail,
+  RestaurantStaffUser,
+  RestaurantUserRole,
   RoomDetail,
   ServiceState,
   WorkspaceUser
 } from "../lib/types";
 import { initialReservationForm } from "../lib/types";
+import type { ChatClientFeatureFlags } from "./chat/chat-feature-flags";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
 const CHAT_API_URL = "https://chat.pupuia.com/api";
@@ -29,6 +35,8 @@ type ChatSession = {
     email: string;
     role: string;
     clientId?: string;
+    advisorId?: string;
+    featureFlags?: Partial<ChatClientFeatureFlags>;
   } | null;
 };
 
@@ -96,6 +104,16 @@ type WorkspaceContextValue = {
     status?: string;
     search?: string;
   }) => Promise<Reservation[]>;
+  loadRestaurantUsers: () => Promise<RestaurantStaffUser[]>;
+  loadRestaurantUserDetail: (userId: string) => Promise<RestaurantStaffUserDetail>;
+  createRestaurantUser: (input: { fullName: string; email: string; password: string; role: RestaurantUserRole }) => Promise<void>;
+  updateRestaurantUser: (
+    userId: string,
+    input: { fullName?: string; email?: string; password?: string; role?: RestaurantUserRole; isActive?: boolean }
+  ) => Promise<void>;
+  deleteRestaurantUser: (userId: string) => Promise<void>;
+  loadRestaurantActivity: (filters?: { restaurantUserId?: string; limit?: number }) => Promise<RestaurantActivityLog[]>;
+  loadRestaurantChatActivity: (filters?: { restaurantUserId?: string; limit?: number }) => Promise<ChatActivityLog[]>;
   loadPlatformRestaurantDetail: (restaurantId: string) => Promise<PlatformRestaurantDetail>;
   createPlatformRestaurant: (input: {
     restaurantName: string;
@@ -108,7 +126,7 @@ type WorkspaceContextValue = {
   }) => Promise<void>;
   createPlatformRestaurantUser: (
     restaurantId: string,
-    input: { fullName: string; email: string; password: string; role: "restaurant_owner" | "restaurant_manager" | "host" | "waiter" }
+    input: { fullName: string; email: string; password: string; role: RestaurantUserRole }
   ) => Promise<void>;
   updatePlatformRestaurantUser: (
     restaurantId: string,
@@ -117,7 +135,7 @@ type WorkspaceContextValue = {
       fullName?: string;
       email?: string;
       password?: string;
-      role?: "restaurant_owner" | "restaurant_manager" | "host" | "waiter";
+      role?: RestaurantUserRole;
       isActive?: boolean;
     }
   ) => Promise<void>;
@@ -193,6 +211,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     }
 
     const user = await response.json();
+    window.localStorage.setItem("user_data", JSON.stringify(user));
     setChatSession({
       token: chatToken,
       user
@@ -280,15 +299,14 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     const savedUserName = window.localStorage.getItem("foodie_user_name");
     const savedUser = window.localStorage.getItem("foodie_user");
     const savedChatToken = window.localStorage.getItem("auth_token");
-    const savedChatUser = window.localStorage.getItem("user_data");
     if (savedToken) {
       setToken(savedToken);
       setUserName(savedUserName || "");
       setCurrentUser(savedUser ? JSON.parse(savedUser) : null);
-      if (savedChatToken && savedChatUser) {
+      if (savedChatToken) {
         setChatSession({
           token: savedChatToken,
-          user: JSON.parse(savedChatUser)
+          user: null
         });
         validateStoredChatSession(savedChatToken).catch(() => clearChatSession());
       }
@@ -352,11 +370,17 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       setUserName(data.user.fullName);
       setCurrentUser(data.user);
       if (data.user.scope === "restaurant") {
-        try {
-          await loginToChat(email, password);
-        } catch (error) {
-          clearChatSession();
-          setFeedback(error instanceof Error ? error.message : "No se pudo iniciar sesion en chat");
+        if (data.chatSession?.token && data.chatSession.user) {
+          window.localStorage.setItem("auth_token", data.chatSession.token);
+          window.localStorage.setItem("user_data", JSON.stringify(data.chatSession.user));
+          setChatSession(data.chatSession);
+        } else {
+          try {
+            await loginToChat(email, password);
+          } catch (error) {
+            clearChatSession();
+            setFeedback(error instanceof Error ? error.message : "No se pudo iniciar sesion en chat");
+          }
         }
       } else {
         clearChatSession();
@@ -609,6 +633,70 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     return api<Reservation[]>(`/restaurant/reservations/history?${params.toString()}`);
   }
 
+  async function loadRestaurantUsers() {
+    return api<RestaurantStaffUser[]>("/restaurant/users");
+  }
+
+  async function loadRestaurantUserDetail(userId: string) {
+    return api<RestaurantStaffUserDetail>(`/restaurant/users/${userId}`);
+  }
+
+  async function createRestaurantUser(input: { fullName: string; email: string; password: string; role: RestaurantUserRole }) {
+    try {
+      await api("/restaurant/users", {
+        method: "POST",
+        body: JSON.stringify(input)
+      });
+      setFeedback("Usuario creado");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudo crear el usuario";
+      setFeedback(message);
+      throw error;
+    }
+  }
+
+  async function updateRestaurantUser(
+    userId: string,
+    input: { fullName?: string; email?: string; password?: string; role?: RestaurantUserRole; isActive?: boolean }
+  ) {
+    try {
+      await api(`/restaurant/users/${userId}`, {
+        method: "PATCH",
+        body: JSON.stringify(input)
+      });
+      setFeedback("Usuario actualizado");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudo actualizar el usuario";
+      setFeedback(message);
+      throw error;
+    }
+  }
+
+  async function deleteRestaurantUser(userId: string) {
+    try {
+      await api(`/restaurant/users/${userId}`, { method: "DELETE" });
+      setFeedback("Usuario eliminado");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudo eliminar el usuario";
+      setFeedback(message);
+      throw error;
+    }
+  }
+
+  async function loadRestaurantActivity(filters?: { restaurantUserId?: string; limit?: number }) {
+    const params = new URLSearchParams();
+    params.set("limit", String(filters?.limit || 120));
+    if (filters?.restaurantUserId) params.set("restaurantUserId", filters.restaurantUserId);
+    return api<RestaurantActivityLog[]>(`/restaurant/activity?${params.toString()}`);
+  }
+
+  async function loadRestaurantChatActivity(filters?: { restaurantUserId?: string; limit?: number }) {
+    const params = new URLSearchParams();
+    params.set("limit", String(filters?.limit || 120));
+    if (filters?.restaurantUserId) params.set("restaurantUserId", filters.restaurantUserId);
+    return api<ChatActivityLog[]>(`/restaurant/chat-activity?${params.toString()}`);
+  }
+
   async function loadPlatformRestaurantDetail(restaurantId: string) {
     return api<PlatformRestaurantDetail>(`/platform/restaurants/${restaurantId}`);
   }
@@ -638,7 +726,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   async function createPlatformRestaurantUser(
     restaurantId: string,
-    input: { fullName: string; email: string; password: string; role: "restaurant_owner" | "restaurant_manager" | "host" | "waiter" }
+    input: { fullName: string; email: string; password: string; role: RestaurantUserRole }
   ) {
     try {
       await api(`/platform/restaurants/${restaurantId}/users`, {
@@ -661,7 +749,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       fullName?: string;
       email?: string;
       password?: string;
-      role?: "restaurant_owner" | "restaurant_manager" | "host" | "waiter";
+      role?: RestaurantUserRole;
       isActive?: boolean;
     }
   ) {
@@ -734,6 +822,13 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       deleteCustomer,
       loadCustomerDetail,
       loadReservationHistory,
+      loadRestaurantUsers,
+      loadRestaurantUserDetail,
+      createRestaurantUser,
+      updateRestaurantUser,
+      deleteRestaurantUser,
+      loadRestaurantActivity,
+      loadRestaurantChatActivity,
       loadPlatformRestaurantDetail,
       createPlatformRestaurant,
       createPlatformRestaurantUser,

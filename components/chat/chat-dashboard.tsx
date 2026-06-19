@@ -220,15 +220,20 @@ export function ChatDashboard() {
     }
   };
 
-  const handleSendMessage = (event: React.FormEvent) => {
+  const handleSendMessage = async (event: React.FormEvent) => {
     event.preventDefault();
     if (selectedFile) {
       void handleSendFileMessage();
       return;
     }
     if (!newMessage.trim()) return;
-    sendMessage(newMessage);
-    setNewMessage("");
+    const content = newMessage;
+    try {
+      await sendMessage(content);
+      setNewMessage("");
+    } catch {
+      toast.error("No se pudo enviar el mensaje");
+    }
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -427,10 +432,17 @@ export function ChatDashboard() {
               </div>
             ) : (
               displayChats.map((chat) => (
-                <button
+                <div
                   key={chat.chatId}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => handleChatSelect(chat)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      handleChatSelect(chat);
+                    }
+                  }}
                   className={`group block w-full border-b border-[rgba(213,200,188,0.7)] px-4 py-4 text-left transition hover:bg-[#FFF8F1] ${activeChat?.chatId === chat.chatId ? "bg-[#FFF1E6]" : "bg-transparent"}`}
                 >
                   <div className="flex items-start gap-3">
@@ -489,7 +501,7 @@ export function ChatDashboard() {
                       ) : null}
                     </div>
                   </div>
-                </button>
+                </div>
               ))
             )}
             {isLoadingMore ? (
@@ -606,14 +618,15 @@ export function ChatDashboard() {
                         </span>
                       </div>
                       <div className="space-y-3">
-                        {messageGroups[dateKey].map((message) => {
+                        {messageGroups[dateKey].map((message, messageIndex) => {
                           const messageId = message.id || message._id || "";
+                          const renderKey = `${messageId || `${message.chatId}-${message.sender}-${message.timestamp}`}-${messageIndex}`;
                           const mediaProxyUrl = messageId ? chatService.getMediaUrl(messageId) : "";
                           const token = typeof window !== "undefined" ? window.localStorage.getItem("auth_token") : null;
                           const mediaUrlWithAuth = mediaProxyUrl && token ? `${mediaProxyUrl}?token=${token}` : mediaProxyUrl;
 
                           return (
-                            <div key={messageId} className={`flex ${message.sender === "bot" ? "justify-end" : "justify-start"}`}>
+                            <div key={renderKey} className={`flex ${message.sender === "bot" ? "justify-end" : "justify-start"}`}>
                               <div
                                 className={`group relative max-w-[82%] rounded-[24px] px-4 py-3 shadow-sm md:max-w-[70%] ${
                                   message.sender === "user" ? "bg-white text-brand-ink" : "bg-brand-orange text-white"

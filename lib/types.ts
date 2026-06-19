@@ -1,5 +1,18 @@
 export type AuthResponse = {
   accessToken: string;
+  chatSession?: {
+    token: string;
+    user: {
+      id?: string;
+      _id?: string;
+      name: string;
+      email: string;
+      role: string;
+      clientId?: string;
+      advisorId?: string;
+      featureFlags?: Record<string, boolean>;
+    };
+  } | null;
   user: {
     sub: string;
     scope: "platform" | "restaurant";
@@ -57,6 +70,81 @@ export type Bootstrap = {
   name: string;
   slug: string;
   branches: Branch[];
+};
+
+export type RestaurantUserRole = "restaurant_owner" | "restaurant_manager" | "host" | "waiter" | "cashier" | "kitchen";
+
+export type RestaurantStaffUser = {
+  id: string;
+  fullName: string;
+  email: string;
+  role: RestaurantUserRole;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+  createdBy?: {
+    id: string;
+    fullName: string;
+    email: string;
+  } | null;
+};
+
+export type RestaurantStaffUserDetail = RestaurantStaffUser & {
+  _count?: {
+    auditLogs: number;
+    chatActivityLogs: number;
+    createdUsers: number;
+  };
+};
+
+export type RestaurantActivityLog = {
+  id: string;
+  action: string;
+  targetType: string;
+  targetId: string;
+  metadata?: Record<string, unknown> | null;
+  createdAt: string;
+  restaurantUser?: {
+    id: string;
+    fullName: string;
+    email: string;
+    role: string;
+  } | null;
+  platformUser?: {
+    id: string;
+    fullName: string;
+    email: string;
+    role: string;
+  } | null;
+};
+
+export type ChatActivityLog = {
+  id: string;
+  action: string;
+  status: "success" | "error";
+  chatId: string;
+  chatClientId?: string | null;
+  contactName?: string | null;
+  contactPhone?: string | null;
+  messageType: "text" | "media" | "template";
+  messageContent?: string | null;
+  templateId?: string | null;
+  templateName?: string | null;
+  templateParameters?: unknown;
+  fileName?: string | null;
+  fileMimeType?: string | null;
+  fileSize?: number | null;
+  externalMessageId?: string | null;
+  externalResponse?: unknown;
+  errorMessage?: string | null;
+  metadata?: Record<string, unknown> | null;
+  createdAt: string;
+  restaurantUser?: {
+    id: string;
+    fullName: string;
+    email: string;
+    role: string;
+  } | null;
 };
 
 export type PlatformRestaurantSummary = {

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { getEnabledChatModules } from "./chat/chat-module-registry";
 import { StatusAlert } from "./status-alert";
 import { useWorkspace } from "./workspace-provider";
 
@@ -22,7 +23,7 @@ const platformNavigationItems = [
 export function WorkspaceHeaderBrand() {
   return (
     <div className="flex items-center gap-3 rounded-full border border-brand-line bg-white px-4 py-2">
-      <Image src="/brand/logo-primary.png" alt="Foodie AI" width={118} height={28} />
+      <Image src="/brand/logo-primary.png" alt="Foodie AI" width={138} height={46} className="h-auto w-[138px]" />
     </div>
   );
 }
@@ -41,6 +42,7 @@ export function WorkspaceShell({
   const pathname = usePathname();
   const {
     bootstrap,
+    chatSession,
     currentUser,
     feedback,
     userName,
@@ -49,28 +51,35 @@ export function WorkspaceShell({
   } = useWorkspace();
 
   const branch = bootstrap?.branches.find((item) => item.id === selectedBranchId);
-  const navigationItems = currentUser?.scope === "platform" ? platformNavigationItems : restaurantNavigationItems;
+  const chatNavigationItems =
+    currentUser?.scope === "restaurant"
+      ? getEnabledChatModules(chatSession.user).map((module) => ({
+          href: module.href,
+          label: module.label
+        }))
+      : [];
+  const restaurantBaseNavigationItems =
+    currentUser?.role === "restaurant_owner"
+      ? [...restaurantNavigationItems, { href: "/usuarios", label: "Usuarios" }]
+      : restaurantNavigationItems;
+  const navigationItems =
+    currentUser?.scope === "platform" ? platformNavigationItems : [...restaurantBaseNavigationItems, ...chatNavigationItems];
   const workspaceLabel = currentUser?.scope === "platform" ? "Administracion" : "Operacion";
   const workspaceName = currentUser?.scope === "platform" ? "Foodie AI" : bootstrap?.name || "Restaurante";
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-brand-cloud">
-      <div className="grid min-h-screen xl:grid-cols-[288px_minmax(0,1fr)]">
-        <aside className="border-r border-brand-line bg-white">
-          <div className="sticky top-0 flex min-h-screen flex-col px-6 py-7">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#FFF3EC]">
-                <Image src="/brand/mark.png" alt="Foodie mark" width={34} height={34} />
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand-orange">Foodie AI</p>
-                <p className="text-sm font-medium text-brand-ink">{workspaceName}</p>
-              </div>
+    <div className="h-screen overflow-hidden bg-brand-cloud">
+      <div className="grid h-screen xl:grid-cols-[288px_minmax(0,1fr)]">
+        <aside className="hidden h-screen overflow-hidden border-r border-brand-line bg-white xl:block">
+          <div className="flex h-full flex-col px-6 py-7">
+            <div className="rounded-[24px] border border-brand-line bg-white px-4 py-4">
+              <Image src="/brand/logo-primary.png" alt="Foodie AI" width={170} height={56} className="h-auto w-[170px]" priority />
+              <p className="mt-3 truncate text-sm font-medium text-brand-ink">{workspaceName}</p>
             </div>
 
-            <nav className="mt-8 space-y-2">
+            <nav className="mt-8 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
               {navigationItems.map((item) => {
-                const active = pathname === item.href;
+                const active = pathname === item.href || (item.href !== "/chat" && pathname.startsWith(`${item.href}/`));
                 return (
                   <Link
                     key={item.href}
@@ -99,7 +108,7 @@ export function WorkspaceShell({
               </div>
             )}
 
-            <div className="mt-auto rounded-[24px] border border-brand-line bg-[#1F1F21] p-4 text-white">
+            <div className="mt-6 shrink-0 rounded-[24px] border border-brand-line bg-[#1F1F21] p-4 text-white">
               <p className="text-sm font-medium">{userName}</p>
               <button onClick={logout} className="mt-2 text-xs uppercase tracking-[0.18em] text-[#FFB088] hover:text-white">
                 Cerrar sesion
@@ -109,7 +118,7 @@ export function WorkspaceShell({
           </div>
         </aside>
 
-        <main className="min-w-0 px-6 py-6 md:px-8 xl:px-10">
+        <main className="h-screen min-w-0 overflow-y-auto px-6 py-6 md:px-8 xl:px-10">
           <div className="rounded-[30px] border border-brand-line bg-white/85 p-6 shadow-[0_18px_45px_rgba(31,31,33,0.06)] md:p-8">
             {hideIntro ? null : (
               <div className="grid gap-4 border-b border-brand-line pb-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-end">

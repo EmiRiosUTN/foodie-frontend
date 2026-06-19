@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { logChatActivity, serializeChatError } from "./chat-activity-service";
 import { useChatAuth } from "./chat-auth";
 import { chatService, type Chat, type Message } from "./chat-service";
 import { chatSseService } from "./chat-sse-service";
@@ -13,8 +14,8 @@ type ChatContextValue = {
   error: string | null;
   setActiveChat: (chat: Chat) => void;
   toggleChatMode: (chatId: string) => void;
-  sendMessage: (content: string) => void;
-  sendMediaMessage: (file: File, caption?: string) => void;
+  sendMessage: (content: string) => Promise<void>;
+  sendMediaMessage: (file: File, caption?: string) => Promise<void>;
   takeChatControl: (chatId: string) => void;
   deleteMessage: (messageId: string) => Promise<void>;
   deleteChat: (chatId: string) => Promise<void>;
@@ -32,6 +33,20 @@ type ChatContextValue = {
 
 const ChatContext = createContext<ChatContextValue | null>(null);
 const CHAT_PAGE_LIMIT = 50;
+
+function getMessageKey(message: Message) {
+  return message.id || message._id || `${message.chatId}-${message.sender}-${message.timestamp}-${message.content}`;
+}
+
+function sortMessages(messages: Message[]) {
+  return messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+}
+
+function appendUniqueMessage(current: Message[], nextMessage: Message) {
+  const nextKey = getMessageKey(nextMessage);
+  if (current.some((message) => getMessageKey(message) === nextKey)) return current;
+  return sortMessages([...current, nextMessage]);
+}
 
 export function ChatProvider({ children }: { children: React.ReactNode }) {
   const { user } = useChatAuth();
@@ -69,7 +84,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const loadChatMessages = useCallback(async (chat: Chat) => {
     try {
       const chatWithMessages = await chatService.getChatWithMessages(chat.chatId);
-      const sorted = chatWithMessages.messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      const uniqueMessages = Array.from(new Map(chatWithMessages.messages.map((message) => [getMessageKey(message), message])).values());
+      const sorted = sortMessages(uniqueMessages);
       setMessages(sorted);
     } catch (err: any) {
       setError(err.response?.data?.message || "Error al cargar mensajes");
@@ -186,15 +202,47 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     if (!activeChat) return;
     try {
       const newMessage = await chatService.sendMessage(activeChat.chatId, content);
-      setMessages((current) => {
-        if (current.some((message) => message.id === newMessage.id)) return current;
-        return [...current, newMessage].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      void logChatActivity({
+        action: "message.sent",
+        status: "success",
+        chatId: activeChat.chatId,
+        chatClientId: activeChat.clientId,
+        contactName: activeChat.contactName,
+        contactPhone: activeChat.phoneNumber,
+        messageType: "text",
+        messageContent: content,
+        externalMessageId: newMessage.id || newMessage._id || null,
+        externalResponse: newMessage,
+        metadata: {
+          chatStatus: activeChat.chatStatus,
+          assignedAdvisorId: activeChat.assignedAdvisorId || null,
+          assignedAdvisorName: activeChat.assignedAdvisorName || null,
+          tags: activeChat.tags || []
+        }
       });
+      setMessages((current) => appendUniqueMessage(current, newMessage));
       setChats((current) =>
         current.map((chat) => (chat.chatId === activeChat.chatId ? { ...chat, lastMessage: content, lastMessageTimestamp: newMessage.timestamp } : chat))
       );
     } catch (err: any) {
+      const serializedError = serializeChatError(err);
+      void logChatActivity({
+        action: "message.send_failed",
+        status: "error",
+        chatId: activeChat.chatId,
+        chatClientId: activeChat.clientId,
+        contactName: activeChat.contactName,
+        contactPhone: activeChat.phoneNumber,
+        messageType: "text",
+        messageContent: content,
+        errorMessage: serializedError.message,
+        metadata: {
+          chatStatus: activeChat.chatStatus,
+          error: serializedError
+        }
+      });
       setError(err.response?.data?.message || "Error al enviar mensaje");
+      throw err;
     }
   }, [activeChat]);
 
@@ -202,10 +250,29 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     if (!activeChat) return;
     try {
       const newMessage = await chatService.sendMediaMessage(activeChat.chatId, file, caption);
-      setMessages((current) => {
-        if (current.some((message) => message.id === newMessage.id)) return current;
-        return [...current, newMessage].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      void logChatActivity({
+        action: "media.sent",
+        status: "success",
+        chatId: activeChat.chatId,
+        chatClientId: activeChat.clientId,
+        contactName: activeChat.contactName,
+        contactPhone: activeChat.phoneNumber,
+        messageType: "media",
+        messageContent: caption || null,
+        fileName: file.name,
+        fileMimeType: file.type || null,
+        fileSize: file.size,
+        externalMessageId: newMessage.id || newMessage._id || null,
+        externalResponse: newMessage,
+        metadata: {
+          chatStatus: activeChat.chatStatus,
+          lastModified: file.lastModified,
+          mediaType: newMessage.mediaType || null,
+          mediaUrl: newMessage.mediaUrl || null,
+          tags: activeChat.tags || []
+        }
       });
+      setMessages((current) => appendUniqueMessage(current, newMessage));
       const displayText = caption || (file ? `Adjunto ${file.name}` : "[archivo]");
       setChats((current) =>
         current.map((chat) =>
@@ -213,7 +280,28 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         )
       );
     } catch (err: any) {
+      const serializedError = serializeChatError(err);
+      void logChatActivity({
+        action: "media.send_failed",
+        status: "error",
+        chatId: activeChat.chatId,
+        chatClientId: activeChat.clientId,
+        contactName: activeChat.contactName,
+        contactPhone: activeChat.phoneNumber,
+        messageType: "media",
+        messageContent: caption || null,
+        fileName: file.name,
+        fileMimeType: file.type || null,
+        fileSize: file.size,
+        errorMessage: serializedError.message,
+        metadata: {
+          chatStatus: activeChat.chatStatus,
+          lastModified: file.lastModified,
+          error: serializedError
+        }
+      });
       setError(err.response?.data?.message || "Error al enviar archivo");
+      throw err;
     }
   }, [activeChat]);
 
