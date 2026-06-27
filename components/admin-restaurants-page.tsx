@@ -29,9 +29,10 @@ const initialRestaurantForm: RestaurantFormState = {
 };
 
 export function AdminRestaurantsPage() {
-  const { currentUser, platformRestaurants, createPlatformRestaurant } = useWorkspace();
+  const { currentUser, platformRestaurants, createPlatformRestaurant, uploadPlatformRestaurantProfileImage } = useWorkspace();
   const [restaurantModalOpen, setRestaurantModalOpen] = useState(false);
   const [restaurantForm, setRestaurantForm] = useState<RestaurantFormState>(initialRestaurantForm);
+  const [profileUploading, setProfileUploading] = useState(false);
   const profileInputRef = useRef<HTMLInputElement>(null);
 
   const metrics = useMemo(() => {
@@ -57,11 +58,13 @@ export function AdminRestaurantsPage() {
   async function selectProfileImage(file?: File) {
     if (!file) return;
     if (!file.type.startsWith("image/")) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setRestaurantForm((current) => ({ ...current, profileImageUrl: String(reader.result || "") }));
-    };
-    reader.readAsDataURL(file);
+    setProfileUploading(true);
+    try {
+      const imageUrl = await uploadPlatformRestaurantProfileImage(file);
+      setRestaurantForm((current) => ({ ...current, profileImageUrl: imageUrl }));
+    } finally {
+      setProfileUploading(false);
+    }
   }
 
   if (currentUser?.scope !== "platform") {
@@ -201,11 +204,12 @@ export function AdminRestaurantsPage() {
                 <button
                   type="button"
                   onClick={() => profileInputRef.current?.click()}
+                  disabled={profileUploading}
                   className="rounded-full bg-white px-5 py-3 text-sm font-extrabold text-brand-orange"
                 >
-                  Subir foto
+                  {profileUploading ? "Subiendo..." : "Subir foto"}
                 </button>
-                <p className="mt-2 text-xs leading-5 text-white/70">PNG o JPG cuadrado recomendado. Se usa en el sidebar del restaurante.</p>
+                <p className="mt-2 text-xs leading-5 text-white/70">PNG, JPG o WEBP hasta 2MB. Se guarda como archivo y la base conserva solo la URL.</p>
                 <input
                   ref={profileInputRef}
                   type="file"

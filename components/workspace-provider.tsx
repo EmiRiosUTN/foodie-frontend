@@ -115,6 +115,7 @@ type WorkspaceContextValue = {
   loadRestaurantActivity: (filters?: { restaurantUserId?: string; limit?: number }) => Promise<RestaurantActivityLog[]>;
   loadRestaurantChatActivity: (filters?: { restaurantUserId?: string; limit?: number }) => Promise<ChatActivityLog[]>;
   loadPlatformRestaurantDetail: (restaurantId: string) => Promise<PlatformRestaurantDetail>;
+  uploadPlatformRestaurantProfileImage: (file: File) => Promise<string>;
   createPlatformRestaurant: (input: {
     restaurantName: string;
     slug: string;
@@ -702,6 +703,27 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     return api<PlatformRestaurantDetail>(`/platform/restaurants/${restaurantId}`);
   }
 
+  async function uploadPlatformRestaurantProfileImage(file: File) {
+    const formData = new FormData();
+    formData.set("file", file);
+
+    const response = await fetch(`${API_URL}/platform/restaurants/profile-image`, {
+      method: "POST",
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: formData
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || "No se pudo subir la foto");
+    }
+
+    const data: { url: string } = await response.json();
+    return data.url;
+  }
+
   async function createPlatformRestaurant(input: {
     restaurantName: string;
     slug: string;
@@ -832,6 +854,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       loadRestaurantActivity,
       loadRestaurantChatActivity,
       loadPlatformRestaurantDetail,
+      uploadPlatformRestaurantProfileImage,
       createPlatformRestaurant,
       createPlatformRestaurantUser,
       updatePlatformRestaurantUser,
