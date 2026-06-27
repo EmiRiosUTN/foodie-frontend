@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FoodieSelect } from "./foodie-select";
 import { WorkspaceShell } from "./workspace-shell";
 import { useWorkspace } from "./workspace-provider";
@@ -122,6 +122,8 @@ export function PanelPage() {
   const [selectedTableId, setSelectedTableId] = useState("");
   const [openMenuTableId, setOpenMenuTableId] = useState("");
   const [detailReservationId, setDetailReservationId] = useState("");
+  const layoutWrapRef = useRef<HTMLDivElement>(null);
+  const [layoutScale, setLayoutScale] = useState(0.7);
 
   const selectedBranch = bootstrap?.branches.find((branch) => branch.id === selectedBranchId);
   const selectedRoom = selectedBranch?.rooms.find((room) => room.id === selectedRoomId) || null;
@@ -144,12 +146,33 @@ export function PanelPage() {
     ? reservations.find((reservation) => reservation.id === detailReservationId) || null
     : null;
 
+  useEffect(() => {
+    const node = layoutWrapRef.current;
+    if (!node) return;
+
+    const updateScale = () => {
+      const availableWidth = node.clientWidth;
+      const nextScale = Math.min(1, Math.max(0.25, (availableWidth - 2) / CANVAS_WIDTH));
+      setLayoutScale(nextScale);
+    };
+
+    updateScale();
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(node);
+    window.addEventListener("resize", updateScale);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateScale);
+    };
+  }, []);
+
   return (
     <WorkspaceShell
       title="Panel"
       description=""
     >
-      <section className="rounded-[30px] border border-brand-line bg-white">
+      <section className="overflow-hidden rounded-[30px] border border-brand-line bg-white">
         <div className="flex flex-wrap items-end gap-4 border-b border-brand-line px-5 py-4">
           <div className="min-w-[180px] flex-1">
             <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-neutral-400">Sucursal</label>
@@ -215,14 +238,18 @@ export function PanelPage() {
           </div>
         </div>
 
-        <div className="min-w-0 p-5">
+        <div className="min-w-0 p-3 sm:p-5">
           {!roomDetail ? (
             <div className="rounded-[24px] border border-brand-line bg-[#FCFAF7] p-6 text-sm text-neutral-500">
               Selecciona un salon para ver el layout operativo.
             </div>
           ) : (
-            <div className="min-w-0 overflow-x-auto overflow-y-hidden rounded-[24px] border border-brand-line bg-[#F7F4EF] p-4">
-              <div className="relative" style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT }}>
+            <div ref={layoutWrapRef} className="w-full overflow-hidden rounded-[24px] border border-brand-line bg-[#F7F4EF] p-3 sm:p-4">
+              <div className="relative w-full overflow-hidden" style={{ height: CANVAS_HEIGHT * layoutScale }}>
+                <div
+                  className="relative origin-top-left"
+                  style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT, transform: `scale(${layoutScale})` }}
+                >
                 {roomDetail.floorPlanItems.map((item) => renderFixedItem(item))}
 
                 {roomDetail.tables.map((table) => {
@@ -330,6 +357,7 @@ export function PanelPage() {
                     </div>
                   );
                 })}
+                </div>
               </div>
             </div>
           )}

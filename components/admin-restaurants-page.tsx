@@ -1,7 +1,7 @@
 "use client";
 
 import { Building2, Mail, Plus, UserCog, Users } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { AppModal } from "./app-modal";
 import { WorkspaceShell } from "./workspace-shell";
 import { useWorkspace } from "./workspace-provider";
@@ -9,6 +9,7 @@ import { useWorkspace } from "./workspace-provider";
 type RestaurantFormState = {
   restaurantName: string;
   slug: string;
+  profileImageUrl: string;
   branchName: string;
   timezone: string;
   ownerFullName: string;
@@ -19,6 +20,7 @@ type RestaurantFormState = {
 const initialRestaurantForm: RestaurantFormState = {
   restaurantName: "",
   slug: "",
+  profileImageUrl: "",
   branchName: "",
   timezone: "America/Argentina/Buenos_Aires",
   ownerFullName: "",
@@ -30,6 +32,7 @@ export function AdminRestaurantsPage() {
   const { currentUser, platformRestaurants, createPlatformRestaurant } = useWorkspace();
   const [restaurantModalOpen, setRestaurantModalOpen] = useState(false);
   const [restaurantForm, setRestaurantForm] = useState<RestaurantFormState>(initialRestaurantForm);
+  const profileInputRef = useRef<HTMLInputElement>(null);
 
   const metrics = useMemo(() => {
     return platformRestaurants.reduce(
@@ -49,6 +52,16 @@ export function AdminRestaurantsPage() {
     await createPlatformRestaurant(restaurantForm);
     setRestaurantModalOpen(false);
     setRestaurantForm(initialRestaurantForm);
+  }
+
+  async function selectProfileImage(file?: File) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setRestaurantForm((current) => ({ ...current, profileImageUrl: String(reader.result || "") }));
+    };
+    reader.readAsDataURL(file);
   }
 
   if (currentUser?.scope !== "platform") {
@@ -111,15 +124,24 @@ export function AdminRestaurantsPage() {
         <div className="divide-y divide-brand-line">
           {platformRestaurants.map((restaurant) => (
             <article key={restaurant.id} className="grid gap-3 px-5 py-4 md:grid-cols-[minmax(0,1.2fr)_140px_140px_140px_140px] md:items-center">
-              <div className="min-w-0">
-                <p className="truncate text-base font-semibold text-brand-ink">{restaurant.name}</p>
-                <p className="mt-1 truncate text-sm text-neutral-500">{restaurant.slug}</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {restaurant.branches.map((branch) => (
-                    <span key={branch.id} className="rounded-full border border-brand-line bg-[#FCFAF7] px-3 py-1 text-xs text-brand-ink">
-                      {branch.name}
-                    </span>
-                  ))}
+              <div className="flex min-w-0 items-center gap-4">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#F4511E]">
+                  {restaurant.profileImageUrl ? (
+                    <img src={restaurant.profileImageUrl} alt={restaurant.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="text-lg font-extrabold text-white">{restaurant.name.slice(0, 1).toUpperCase()}</span>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-base font-semibold text-brand-ink">{restaurant.name}</p>
+                  <p className="mt-1 truncate text-sm text-neutral-500">{restaurant.slug}</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {restaurant.branches.map((branch) => (
+                      <span key={branch.id} className="rounded-full border border-brand-line bg-[#FCFAF7] px-3 py-1 text-xs text-brand-ink">
+                        {branch.name}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
               <p className="text-sm text-brand-ink">{restaurant.users.length}</p>
@@ -163,6 +185,37 @@ export function AdminRestaurantsPage() {
         }
       >
         <div className="grid gap-4 md:grid-cols-2">
+          <div className="md:col-span-2">
+            <span className="mb-2 block text-sm font-medium text-white">Foto de perfil del restaurante</span>
+            <div className="flex items-center gap-4 rounded-[22px] border border-white/10 bg-white/5 p-4">
+              <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-orange">
+                {restaurantForm.profileImageUrl ? (
+                  <img src={restaurantForm.profileImageUrl} alt="Preview restaurante" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="text-2xl font-extrabold text-white">
+                    {(restaurantForm.restaurantName || "R").slice(0, 1).toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <div className="min-w-0">
+                <button
+                  type="button"
+                  onClick={() => profileInputRef.current?.click()}
+                  className="rounded-full bg-white px-5 py-3 text-sm font-extrabold text-brand-orange"
+                >
+                  Subir foto
+                </button>
+                <p className="mt-2 text-xs leading-5 text-white/70">PNG o JPG cuadrado recomendado. Se usa en el sidebar del restaurante.</p>
+                <input
+                  ref={profileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(event) => void selectProfileImage(event.target.files?.[0])}
+                />
+              </div>
+            </div>
+          </div>
           {[
             ["restaurantName", "Nombre del restaurante"],
             ["slug", "Slug"],

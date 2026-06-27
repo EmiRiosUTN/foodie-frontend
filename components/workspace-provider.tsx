@@ -118,6 +118,7 @@ type WorkspaceContextValue = {
   createPlatformRestaurant: (input: {
     restaurantName: string;
     slug: string;
+    profileImageUrl?: string;
     branchName: string;
     timezone: string;
     ownerFullName: string;
@@ -704,6 +705,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   async function createPlatformRestaurant(input: {
     restaurantName: string;
     slug: string;
+    profileImageUrl?: string;
     branchName: string;
     timezone: string;
     ownerFullName: string;

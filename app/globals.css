@@ -27,4 +27,12 @@ body {
   .foodie-input {
     @apply w-full rounded-[18px] border border-brand-line bg-white px-4 py-3 text-sm font-medium text-brand-ink outline-none transition placeholder:text-neutral-400 focus:border-brand-orange focus:ring-4 focus:ring-[#FF5A00]/10 disabled:cursor-not-allowed disabled:opacity-60;
   }
+
+  .app-modal-footer > button:first-child {
+    @apply bg-white text-brand-orange border-white;
+  }
+
+  .app-modal-footer > button:last-child {
+    @apply border-brand-orange bg-brand-orange text-white;
+  }
 }

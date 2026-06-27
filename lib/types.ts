@@ -69,6 +69,7 @@ export type Bootstrap = {
   id: string;
   name: string;
   slug: string;
+  profileImageUrl?: string | null;
   branches: Branch[];
 };
 
@@ -151,6 +152,7 @@ export type PlatformRestaurantSummary = {
   id: string;
   name: string;
   slug: string;
+  profileImageUrl?: string | null;
   isActive: boolean;
   chatModuleEnabled: boolean;
   createdAt: string;
@@ -179,6 +181,7 @@ export type PlatformRestaurantDetail = {
   id: string;
   name: string;
   slug: string;
+  profileImageUrl?: string | null;
   isActive: boolean;
   chatModuleEnabled: boolean;
   chatClientId?: string | null;
