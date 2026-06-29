@@ -462,6 +462,7 @@ export function ReservasPage() {
             <input
               value={reservationForm.fullName}
               onChange={(event) => setReservationForm((current) => ({ ...current, fullName: event.target.value }))}
+              placeholder="Ej: Graciela Guzman"
               className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
             />
           </label>
@@ -470,6 +471,7 @@ export function ReservasPage() {
             <input
               value={reservationForm.phone}
               onChange={(event) => setReservationForm((current) => ({ ...current, phone: event.target.value }))}
+              placeholder="Ej: 5492213800680"
               className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
             />
           </label>
@@ -479,6 +481,7 @@ export function ReservasPage() {
               type="email"
               value={reservationForm.email}
               onChange={(event) => setReservationForm((current) => ({ ...current, email: event.target.value }))}
+              placeholder="Ej: cliente@email.com"
               className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
             />
           </label>
@@ -491,6 +494,7 @@ export function ReservasPage() {
               inputMode="numeric"
               value={reservationForm.partySize}
               onChange={(event) => setReservationForm((current) => ({ ...current, partySize: event.target.value }))}
+              placeholder="Ej: 4"
               className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
             />
           </label>
@@ -541,6 +545,7 @@ export function ReservasPage() {
             <textarea
               value={reservationForm.notes}
               onChange={(event) => setReservationForm((current) => ({ ...current, notes: event.target.value }))}
+              placeholder="Ej: Prefiere mesa tranquila, llega 20:30."
               className="h-28 w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
             />
           </label>

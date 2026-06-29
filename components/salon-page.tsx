@@ -1169,14 +1169,14 @@ export function SalonPage() {
                     <button
                       type="button"
                       onClick={() => startEditRoom(room)}
-                      className="flex-1 rounded-full border border-brand-line px-4 py-3 text-sm font-medium text-brand-ink"
+                      className="flex-1 rounded-full border border-brand-line px-4 py-3 text-sm font-semibold text-brand-ink transition hover:border-brand-orange hover:bg-[#FFF4ED] hover:text-brand-orange hover:shadow-[0_10px_24px_rgba(244,81,30,0.14)] focus:outline-none focus:ring-4 focus:ring-brand-orange/20"
                     >
                       Editar
                     </button>
                     <button
                       type="button"
                       onClick={() => setRoomPendingDelete(room)}
-                      className="rounded-full border border-[#F0C7B2] px-4 py-3 text-sm font-medium text-[#B65221]"
+                      className="rounded-full border border-[#F0C7B2] px-4 py-3 text-sm font-semibold text-[#B65221] transition hover:border-[#D94B2B] hover:bg-[#FDE9E3] hover:text-[#A83418] hover:shadow-[0_10px_24px_rgba(217,75,43,0.16)] focus:outline-none focus:ring-4 focus:ring-[#D94B2B]/20"
                     >
                       Borrar
                     </button>
@@ -1566,27 +1566,33 @@ export function SalonPage() {
         }
       >
         <div className="space-y-4">
-          <input
-            value={roomModalMode === "edit" ? roomEditor.name : roomForm.name}
-            onChange={(event) =>
-              roomModalMode === "edit"
-                ? setRoomEditor((current) => ({ ...current, name: event.target.value }))
-                : setRoomForm((current) => ({ ...current, name: event.target.value }))
-            }
-            placeholder="Nombre del salon"
-            className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
-          />
-          <input
-            value={roomModalMode === "edit" ? roomEditor.description : roomForm.description}
-            onChange={(event) =>
-              roomModalMode === "edit"
-                ? setRoomEditor((current) => ({ ...current, description: event.target.value }))
-                : setRoomForm((current) => ({ ...current, description: event.target.value }))
-            }
-            placeholder="Descripcion"
-            className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
-          />
-          <label className="flex items-center gap-3 rounded-2xl border border-brand-line bg-[#FCFAF7] px-4 py-3 text-sm text-brand-ink">
+          <label className="block space-y-2">
+            <span className="text-sm font-semibold text-white">Nombre del salon</span>
+            <input
+              value={roomModalMode === "edit" ? roomEditor.name : roomForm.name}
+              onChange={(event) =>
+                roomModalMode === "edit"
+                  ? setRoomEditor((current) => ({ ...current, name: event.target.value }))
+                  : setRoomForm((current) => ({ ...current, name: event.target.value }))
+              }
+              placeholder="Ej: Terraza"
+              className="w-full rounded-2xl border border-white/10 bg-white px-4 py-3 text-brand-ink outline-none placeholder:text-neutral-400 focus:border-brand-orange"
+            />
+          </label>
+          <label className="block space-y-2">
+            <span className="text-sm font-semibold text-white">Descripcion</span>
+            <input
+              value={roomModalMode === "edit" ? roomEditor.description : roomForm.description}
+              onChange={(event) =>
+                roomModalMode === "edit"
+                  ? setRoomEditor((current) => ({ ...current, description: event.target.value }))
+                  : setRoomForm((current) => ({ ...current, description: event.target.value }))
+              }
+              placeholder="Ej: Sector exterior con mesas altas"
+              className="w-full rounded-2xl border border-white/10 bg-white px-4 py-3 text-brand-ink outline-none placeholder:text-neutral-400 focus:border-brand-orange"
+            />
+          </label>
+          <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white">
             <input
               type="checkbox"
               checked={roomModalMode === "edit" ? roomEditor.isOutdoor : roomForm.isOutdoor}
@@ -1595,8 +1601,9 @@ export function SalonPage() {
                   ? setRoomEditor((current) => ({ ...current, isOutdoor: event.target.checked }))
                   : setRoomForm((current) => ({ ...current, isOutdoor: event.target.checked }))
               }
+              className="h-4 w-4 accent-brand-orange"
             />
-            Exterior
+            Salon exterior
           </label>
         </div>
       </AppModal>
@@ -1641,44 +1648,54 @@ export function SalonPage() {
       >
         <>
             <div className="mt-5 space-y-4">
-              <input
-                value={tableModal.label}
-                onChange={(event) => setTableModal((current) => ({ ...current, label: event.target.value }))}
-                placeholder="Nombre de la mesa"
-                className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
-              />
+              <label className="block space-y-2">
+                <span className="text-sm font-semibold text-white">Nombre de la mesa</span>
+                <input
+                  value={tableModal.label}
+                  onChange={(event) => setTableModal((current) => ({ ...current, label: event.target.value }))}
+                  placeholder="Ej: M1"
+                  className="w-full rounded-2xl border border-white/10 bg-white px-4 py-3 text-brand-ink outline-none placeholder:text-neutral-400 focus:border-brand-orange"
+                />
+              </label>
 
-              <input
-                type="number"
-                min="1"
-                value={tableModal.seats}
-                onChange={(event) => setTableModal((current) => ({ ...current, seats: event.target.value }))}
-                className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
-              />
+              <label className="block space-y-2">
+                <span className="text-sm font-semibold text-white">Cantidad de comensales</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={tableModal.seats}
+                  onChange={(event) => setTableModal((current) => ({ ...current, seats: event.target.value }))}
+                  placeholder="Ej: 4"
+                  className="w-full rounded-2xl border border-white/10 bg-white px-4 py-3 text-brand-ink outline-none placeholder:text-neutral-400 focus:border-brand-orange"
+                />
+              </label>
 
-              <label className="flex items-center gap-3 text-sm text-brand-ink">
+              <label className="flex items-center gap-3 text-sm font-semibold text-white">
                 <input
                   type="checkbox"
                   checked={tableModal.isReservable}
                   onChange={(event) => setTableModal((current) => ({ ...current, isReservable: event.target.checked }))}
+                  className="h-4 w-4 accent-brand-orange"
                 />
                 Reservable
               </label>
 
-              <label className="flex items-center gap-3 text-sm text-brand-ink">
+              <label className="flex items-center gap-3 text-sm font-semibold text-white">
                 <input
                   type="checkbox"
                   checked={tableModal.isCombinable}
                   onChange={(event) => setTableModal((current) => ({ ...current, isCombinable: event.target.checked }))}
+                  className="h-4 w-4 accent-brand-orange"
                 />
                 Combinable
               </label>
 
-              <label className="flex items-center gap-3 text-sm text-brand-ink">
+              <label className="flex items-center gap-3 text-sm font-semibold text-white">
                 <input
                   type="checkbox"
                   checked={tableModal.hasTvView}
                   onChange={(event) => setTableModal((current) => ({ ...current, hasTvView: event.target.checked }))}
+                  className="h-4 w-4 accent-brand-orange"
                 />
                 Vista a tele
               </label>

@@ -235,6 +235,21 @@ export function AdminRestaurantsPage() {
                 type={key === "ownerPassword" ? "password" : "text"}
                 value={restaurantForm[key as keyof RestaurantFormState]}
                 onChange={(event) => setRestaurantForm((current) => ({ ...current, [key]: event.target.value }))}
+                placeholder={
+                  key === "restaurantName"
+                    ? "Ej: La Esquina de Barrio"
+                    : key === "slug"
+                      ? "Ej: la-esquina"
+                      : key === "branchName"
+                        ? "Ej: Sucursal Centro"
+                        : key === "timezone"
+                          ? "Ej: America/Argentina/Buenos_Aires"
+                          : key === "ownerFullName"
+                            ? "Ej: Owner Restaurante"
+                            : key === "ownerEmail"
+                              ? "Ej: owner@restaurante.com"
+                              : "Minimo 4 caracteres"
+                }
                 className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
               />
             </label>

@@ -302,6 +302,7 @@ export function AdminUsersPage() {
             <input
               value={userForm.fullName}
               onChange={(event) => setUserForm((current) => ({ ...current, fullName: event.target.value }))}
+              placeholder="Ej: Emiliano Rios"
               className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
             />
           </label>
@@ -311,6 +312,7 @@ export function AdminUsersPage() {
               type="email"
               value={userForm.email}
               onChange={(event) => setUserForm((current) => ({ ...current, email: event.target.value }))}
+              placeholder="Ej: admin@foodie.ai"
               className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
             />
           </label>
@@ -331,15 +333,16 @@ export function AdminUsersPage() {
               value={userForm.password}
               onChange={(event) => setUserForm((current) => ({ ...current, password: event.target.value }))}
               className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
-              placeholder={userModalMode === "edit" ? "Dejar vacia para no cambiarla" : ""}
+              placeholder={userModalMode === "edit" ? "Dejar vacia para no cambiarla" : "Minimo 4 caracteres"}
             />
           </label>
           {userModalMode === "edit" ? (
-            <label className="md:col-span-2 flex items-center gap-3 rounded-2xl border border-brand-line bg-[#FCFAF7] px-4 py-3 text-sm text-brand-ink">
+            <label className="md:col-span-2 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white">
               <input
                 type="checkbox"
                 checked={userForm.isActive}
                 onChange={(event) => setUserForm((current) => ({ ...current, isActive: event.target.checked }))}
+                className="h-4 w-4 accent-brand-orange"
               />
               Usuario activo
             </label>

@@ -429,6 +429,7 @@ export function ClientesPage() {
             <input
               value={form.fullName}
               onChange={(event) => setForm((current) => ({ ...current, fullName: event.target.value }))}
+              placeholder="Ej: Graciela Guzman"
               className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
             />
           </label>
@@ -437,6 +438,7 @@ export function ClientesPage() {
             <input
               value={form.phone}
               onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
+              placeholder="Ej: 5492213800680"
               className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
             />
           </label>
@@ -446,6 +448,7 @@ export function ClientesPage() {
               type="email"
               value={form.email}
               onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+              placeholder="Ej: cliente@email.com"
               className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
             />
           </label>
@@ -473,6 +476,7 @@ export function ClientesPage() {
               rows={4}
               value={form.notes}
               onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
+              placeholder="Ej: Cliente frecuente, prefiere ventana."
               className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
             />
           </label>

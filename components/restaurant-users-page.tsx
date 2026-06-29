@@ -296,11 +296,11 @@ export function RestaurantUsersPage() {
         <div className="grid gap-4 md:grid-cols-2">
           <label className="space-y-2 text-sm text-brand-ink">
             <span className="font-medium">Nombre y apellido</span>
-            <input value={form.fullName} onChange={(event) => setForm((current) => ({ ...current, fullName: event.target.value }))} className="foodie-input" />
+            <input value={form.fullName} onChange={(event) => setForm((current) => ({ ...current, fullName: event.target.value }))} className="foodie-input" placeholder="Ej: Emiliano Rios" />
           </label>
           <label className="space-y-2 text-sm text-brand-ink">
             <span className="font-medium">Email</span>
-            <input type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} className="foodie-input" />
+            <input type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} className="foodie-input" placeholder="Ej: usuario@restaurante.com" />
           </label>
           <label className="space-y-2 text-sm text-brand-ink">
             <span className="font-medium">Rol</span>
@@ -314,11 +314,11 @@ export function RestaurantUsersPage() {
           </label>
           <label className="space-y-2 text-sm text-brand-ink">
             <span className="font-medium">{modalMode === "create" ? "Contrasena" : "Nueva contrasena"}</span>
-            <input type="password" value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} className="foodie-input" placeholder={modalMode === "edit" ? "Dejar vacia para no cambiarla" : ""} />
+            <input type="password" value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} className="foodie-input" placeholder={modalMode === "edit" ? "Dejar vacia para no cambiarla" : "Minimo 4 caracteres"} />
           </label>
           {modalMode === "edit" ? (
-            <label className="flex items-center gap-3 rounded-2xl border border-brand-line bg-[#FCFAF7] px-4 py-3 text-sm text-brand-ink md:col-span-2">
-              <input type="checkbox" checked={form.isActive} onChange={(event) => setForm((current) => ({ ...current, isActive: event.target.checked }))} />
+            <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white md:col-span-2">
+              <input type="checkbox" checked={form.isActive} onChange={(event) => setForm((current) => ({ ...current, isActive: event.target.checked }))} className="h-4 w-4 accent-brand-orange" />
               Usuario activo
             </label>
           ) : null}
