@@ -47,6 +47,10 @@ export type Room = {
       manualFeatures?: {
         hasTvView?: boolean;
       };
+      capacity?: {
+        minPartySize?: number;
+        maxPartySize?: number;
+      };
       derivedFeatures?: {
         nearWindow?: boolean;
         nearColumn?: boolean;

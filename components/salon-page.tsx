@@ -41,6 +41,10 @@ type TableItemMetadata = {
   manualFeatures?: {
     hasTvView?: boolean;
   };
+  capacity?: {
+    minPartySize?: number;
+    maxPartySize?: number;
+  };
   derivedFeatures?: {
     nearWindow?: boolean;
     nearColumn?: boolean;
@@ -67,9 +71,12 @@ type PendingTableDraft = {
 type TableModalState = {
   label: string;
   seats: string;
+  minPartySize: string;
+  maxPartySize: string;
   isReservable: boolean;
   isCombinable: boolean;
   hasTvView: boolean;
+  combinationTableIds: string[];
 };
 
 type DesignSnapshot = {
@@ -150,6 +157,11 @@ function isTableKind(kind: EditorKind): kind is "round" | "square" | "rectangula
 
 function pairKey(a: string, b: string) {
   return [a, b].sort().join("__");
+}
+
+function getTableMaxPartySize(table: Pick<EditorItem, "seats" | "metadata">) {
+  const metadata = (table.metadata || {}) as TableItemMetadata;
+  return metadata.capacity?.maxPartySize || table.seats || 0;
 }
 
 function normalizeRotation(value: number) {
@@ -264,6 +276,10 @@ function deriveTableMetadata(
     manualFeatures: {
       hasTvView: Boolean(source.manualFeatures?.hasTvView)
     },
+    capacity: {
+      minPartySize: source.capacity?.minPartySize,
+      maxPartySize: source.capacity?.maxPartySize
+    },
     derivedFeatures: {
       nearWindow: near("window", 120),
       nearColumn: near("column", 90),
@@ -370,9 +386,12 @@ export function SalonPage() {
   const [tableModal, setTableModal] = useState<TableModalState>({
     label: "",
     seats: "4",
+    minPartySize: "1",
+    maxPartySize: "4",
     isReservable: true,
     isCombinable: false,
-    hasTvView: false
+    hasTvView: false,
+    combinationTableIds: []
   });
   const [combinationKeys, setCombinationKeys] = useState<string[]>([]);
   const [isSavingLayout, setIsSavingLayout] = useState(false);
@@ -546,6 +565,17 @@ export function SalonPage() {
     return pairs;
   }, [combinableTables]);
 
+  const tableCombinationOptions = useMemo(
+    () =>
+      editorItems.filter(
+        (item) =>
+          isTableKind(item.kind) &&
+          item.id !== editingTableItemId &&
+          (!pendingTableDraft || item.id !== selectedItemId)
+      ),
+    [editorItems, editingTableItemId, pendingTableDraft, selectedItemId]
+  );
+
   function resetRoomEditor() {
     setRoomModalMode("");
     setEditingRoomId("");
@@ -622,13 +652,21 @@ export function SalonPage() {
 
   function openTableModal(item: EditorItem) {
     const metadata = (item.metadata || {}) as TableItemMetadata;
+    const selectedCombinationIds = activeCombinationKeys
+      .filter((key) => key.split("__").includes(item.id))
+      .map((key) => key.split("__").find((id) => id !== item.id))
+      .filter((id): id is string => Boolean(id));
+
     setEditingTableItemId(item.id);
     setTableModal({
       label: item.label,
       seats: String(item.seats || 4),
+      minPartySize: String(metadata.capacity?.minPartySize || 1),
+      maxPartySize: String(metadata.capacity?.maxPartySize || item.seats || 4),
       isReservable: item.isReservable ?? true,
       isCombinable: item.isCombinable ?? false,
-      hasTvView: Boolean(metadata.manualFeatures?.hasTvView)
+      hasTvView: Boolean(metadata.manualFeatures?.hasTvView),
+      combinationTableIds: selectedCombinationIds
     });
   }
 
@@ -638,9 +676,12 @@ export function SalonPage() {
     setTableModal({
       label: "",
       seats: "4",
+      minPartySize: "1",
+      maxPartySize: "4",
       isReservable: true,
       isCombinable: false,
-      hasTvView: false
+      hasTvView: false,
+      combinationTableIds: []
     });
   }
 
@@ -844,6 +885,12 @@ export function SalonPage() {
 
   function submitTableModal() {
     const seats = Number(tableModal.seats) || pendingTableDraft?.seats || 4;
+    const minPartySize = Math.max(1, Number(tableModal.minPartySize) || 1);
+    const maxPartySize = Math.max(minPartySize, Number(tableModal.maxPartySize) || seats);
+    const currentTableId = editingTableItemId || "";
+    const nextCombinationKeys = tableModal.isCombinable && currentTableId
+      ? tableModal.combinationTableIds.map((otherId) => pairKey(currentTableId, otherId))
+      : [];
     pushUndoSnapshot();
 
     if (editingTableItemId) {
@@ -858,6 +905,10 @@ export function SalonPage() {
                 isCombinable: tableModal.isCombinable,
                 metadata: {
                   ...((item.metadata || {}) as TableItemMetadata),
+                  capacity: {
+                    minPartySize,
+                    maxPartySize
+                  },
                   manualFeatures: {
                     hasTvView: tableModal.hasTvView
                   }
@@ -866,6 +917,10 @@ export function SalonPage() {
             : item
         )
       );
+      setCombinationKeys((current) => [
+        ...current.filter((key) => !key.split("__").includes(editingTableItemId)),
+        ...nextCombinationKeys
+      ]);
       setHasUnsavedChanges(true);
       closeTableModal();
       return;
@@ -874,6 +929,9 @@ export function SalonPage() {
     if (!pendingTableDraft) return;
 
     const itemId = `local-table-${Date.now()}`;
+    const draftCombinationKeys = tableModal.isCombinable
+      ? tableModal.combinationTableIds.map((otherId) => pairKey(itemId, otherId))
+      : [];
     setEditorItems((current) => [
       ...current,
       {
@@ -889,12 +947,17 @@ export function SalonPage() {
         isReservable: tableModal.isReservable,
         isCombinable: tableModal.isCombinable,
         metadata: {
+          capacity: {
+            minPartySize,
+            maxPartySize
+          },
           manualFeatures: {
             hasTvView: tableModal.hasTvView
           }
         }
       }
     ]);
+    setCombinationKeys((current) => [...current, ...draftCombinationKeys]);
     setSelectedItemId(itemId);
     setHasUnsavedChanges(true);
     closeTableModal();
@@ -927,9 +990,12 @@ export function SalonPage() {
       setTableModal({
         label: "",
         seats: String(palette.seats || 4),
+        minPartySize: "1",
+        maxPartySize: String(palette.seats || 4),
         isReservable: true,
         isCombinable: false,
-        hasTvView: false
+        hasTvView: false,
+        combinationTableIds: []
       });
       return;
     }
@@ -993,7 +1059,7 @@ export function SalonPage() {
           id: `${selectedRoomId}-combo-${index + 1}`,
           parentTableId,
           childTableId,
-          combinedSeats: Math.max(1, (left.seats || 0) + (right.seats || 0) - 2)
+          combinedSeats: Math.max(1, getTableMaxPartySize(left) + getTableMaxPartySize(right) - 2)
         };
       })
       .filter((item): item is { id: string; parentTableId: string; childTableId: string; combinedSeats: number } => Boolean(item));
@@ -1261,7 +1327,8 @@ export function SalonPage() {
               ref={canvasRef}
               onDragOver={(event) => event.preventDefault()}
               onDrop={handleCanvasDrop}
-              className="h-[78vh] min-h-[720px] overflow-auto bg-[#EFE9E0] p-5"
+              className="h-[78vh] min-h-[720px] min-w-0 overflow-x-auto overflow-y-auto overscroll-contain bg-[#EFE9E0] p-5"
+              style={{ scrollbarGutter: "stable both-edges" }}
             >
               <div className="flex min-h-full min-w-full items-start justify-start">
                 <div
@@ -1513,7 +1580,7 @@ export function SalonPage() {
                   {possibleCombinationPairs.length ? (
                     possibleCombinationPairs.map((pair) => {
                       const active = activeCombinationKeys.includes(pair.key);
-                      const combinedSeats = Math.max(1, (pair.left.seats || 0) + (pair.right.seats || 0) - 2);
+                      const combinedSeats = Math.max(1, getTableMaxPartySize(pair.left) + getTableMaxPartySize(pair.right) - 2);
                       return (
                         <button
                           key={pair.key}
@@ -1526,7 +1593,7 @@ export function SalonPage() {
                             {pair.left.label} + {pair.right.label}
                           </p>
                           <p className="mt-1 text-xs text-neutral-500">
-                            {pair.left.seats || 0} + {pair.right.seats || 0} - 2 = {combinedSeats} pax
+                            {getTableMaxPartySize(pair.left)} + {getTableMaxPartySize(pair.right)} - 2 = {combinedSeats} pax
                           </p>
                         </button>
                       );
@@ -1659,7 +1726,7 @@ export function SalonPage() {
               </label>
 
               <label className="block space-y-2">
-                <span className="text-sm font-semibold text-white">Cantidad de comensales</span>
+                <span className="text-sm font-semibold text-white">Comensales base</span>
                 <input
                   type="number"
                   min="1"
@@ -1669,6 +1736,31 @@ export function SalonPage() {
                   className="w-full rounded-2xl border border-white/10 bg-white px-4 py-3 text-brand-ink outline-none placeholder:text-neutral-400 focus:border-brand-orange"
                 />
               </label>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="block space-y-2">
+                  <span className="text-sm font-semibold text-white">Minimo de comensales</span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={tableModal.minPartySize}
+                    onChange={(event) => setTableModal((current) => ({ ...current, minPartySize: event.target.value }))}
+                    placeholder="Ej: 2"
+                    className="w-full rounded-2xl border border-white/10 bg-white px-4 py-3 text-brand-ink outline-none placeholder:text-neutral-400 focus:border-brand-orange"
+                  />
+                </label>
+                <label className="block space-y-2">
+                  <span className="text-sm font-semibold text-white">Maximo de comensales</span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={tableModal.maxPartySize}
+                    onChange={(event) => setTableModal((current) => ({ ...current, maxPartySize: event.target.value }))}
+                    placeholder="Ej: 3"
+                    className="w-full rounded-2xl border border-white/10 bg-white px-4 py-3 text-brand-ink outline-none placeholder:text-neutral-400 focus:border-brand-orange"
+                  />
+                </label>
+              </div>
 
               <label className="flex items-center gap-3 text-sm font-semibold text-white">
                 <input
@@ -1684,11 +1776,50 @@ export function SalonPage() {
                 <input
                   type="checkbox"
                   checked={tableModal.isCombinable}
-                  onChange={(event) => setTableModal((current) => ({ ...current, isCombinable: event.target.checked }))}
+                  onChange={(event) =>
+                    setTableModal((current) => ({
+                      ...current,
+                      isCombinable: event.target.checked,
+                      combinationTableIds: event.target.checked ? current.combinationTableIds : []
+                    }))
+                  }
                   className="h-4 w-4 accent-brand-orange"
                 />
                 Combinable
               </label>
+
+              {tableModal.isCombinable ? (
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-sm font-semibold text-white">Se puede combinar con</p>
+                  <p className="mt-1 text-xs leading-5 text-white/65">Selecciona manualmente las mesas compatibles. No se elige automaticamente.</p>
+                  <div className="mt-3 max-h-40 space-y-2 overflow-y-auto pr-1">
+                    {tableCombinationOptions.length ? (
+                      tableCombinationOptions.map((table) => (
+                        <label key={table.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white px-3 py-2 text-sm font-semibold text-brand-ink">
+                          <span>{table.label} - {table.seats || 0} pax</span>
+                          <input
+                            type="checkbox"
+                            checked={tableModal.combinationTableIds.includes(table.id)}
+                            onChange={(event) =>
+                              setTableModal((current) => ({
+                                ...current,
+                                combinationTableIds: event.target.checked
+                                  ? [...current.combinationTableIds, table.id]
+                                  : current.combinationTableIds.filter((id) => id !== table.id)
+                              }))
+                            }
+                            className="h-4 w-4 accent-brand-orange"
+                          />
+                        </label>
+                      ))
+                    ) : (
+                      <p className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm text-white/70">
+                        Agrega otra mesa al plano para poder seleccionarla como combinable.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : null}
 
               <label className="flex items-center gap-3 text-sm font-semibold text-white">
                 <input
