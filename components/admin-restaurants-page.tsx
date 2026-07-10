@@ -194,7 +194,11 @@ export function AdminRestaurantsPage() {
                           ))}
                         </div>
                       ) : (
-                        <p className="mt-3 text-xs text-neutral-400">Sin salones disponibles para esta sucursal.</p>
+                        <p className="mt-3 text-xs text-neutral-400">
+                          {restaurant._count.rooms > 0
+                            ? "Hay salones creados, pero el endpoint admin no los devolvio. Reinicia backend y recarga."
+                            : "Sin salones disponibles para esta sucursal."}
+                        </p>
                       )}
                     </div>
                   ))}

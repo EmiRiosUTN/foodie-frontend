@@ -275,8 +275,15 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
               rooms: branch.rooms || []
             }))
           };
-        } catch {
-          return restaurant;
+        } catch (error) {
+          setFeedback(error instanceof Error ? error.message : "No se pudieron cargar los salones del restaurante");
+          return {
+            ...restaurant,
+            branches: restaurant.branches.map((branch) => ({
+              ...branch,
+              rooms: branch.rooms || []
+            }))
+          };
         }
       })
     );
