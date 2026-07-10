@@ -194,7 +194,7 @@ export function AdminRestaurantsPage() {
                           ))}
                         </div>
                       ) : (
-                        <p className="mt-3 text-xs text-neutral-400">Sin salones cargados.</p>
+                        <p className="mt-3 text-xs text-neutral-400">Sin salones disponibles para esta sucursal.</p>
                       )}
                     </div>
                   ))}

@@ -262,8 +262,26 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   async function loadPlatformRestaurants() {
     const data = await api<PlatformRestaurantSummary[]>("/platform/restaurants");
-    setPlatformRestaurants(data);
-    return data;
+    const hydrated = await Promise.all(
+      data.map(async (restaurant) => {
+        try {
+          const detail = await api<PlatformRestaurantDetail>(`/platform/restaurants/${restaurant.id}`);
+          return {
+            ...restaurant,
+            branches: detail.branches.map((branch) => ({
+              id: branch.id,
+              name: branch.name,
+              timezone: branch.timezone,
+              rooms: branch.rooms || []
+            }))
+          };
+        } catch {
+          return restaurant;
+        }
+      })
+    );
+    setPlatformRestaurants(hydrated);
+    return hydrated;
   }
 
   async function loadOperationalData() {
