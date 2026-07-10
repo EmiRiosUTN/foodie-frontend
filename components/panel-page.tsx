@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { FoodieSelect } from "./foodie-select";
 import { WorkspaceShell } from "./workspace-shell";
 import { useWorkspace } from "./workspace-provider";
@@ -123,7 +123,7 @@ export function PanelPage() {
   const [openMenuTableId, setOpenMenuTableId] = useState("");
   const [detailReservationId, setDetailReservationId] = useState("");
   const layoutWrapRef = useRef<HTMLDivElement>(null);
-  const [layoutScale, setLayoutScale] = useState(1);
+  const layoutScale = 1;
 
   const selectedBranch = bootstrap?.branches.find((branch) => branch.id === selectedBranchId);
   const selectedRoom = selectedBranch?.rooms.find((room) => room.id === selectedRoomId) || null;
@@ -145,27 +145,6 @@ export function PanelPage() {
   const detailReservation = detailReservationId
     ? reservations.find((reservation) => reservation.id === detailReservationId) || null
     : null;
-
-  useEffect(() => {
-    const node = layoutWrapRef.current;
-    if (!node) return;
-
-    const updateScale = () => {
-      const availableWidth = node.clientWidth;
-      const nextScale = availableWidth < 720 ? Math.max(0.45, (availableWidth - 2) / CANVAS_WIDTH) : 1;
-      setLayoutScale(nextScale);
-    };
-
-    updateScale();
-    const observer = new ResizeObserver(updateScale);
-    observer.observe(node);
-    window.addEventListener("resize", updateScale);
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", updateScale);
-    };
-  }, []);
 
   return (
     <WorkspaceShell
@@ -246,10 +225,10 @@ export function PanelPage() {
           ) : (
             <div
               ref={layoutWrapRef}
-              className="max-h-[78vh] w-full overflow-x-auto overflow-y-auto overscroll-contain rounded-[24px] border border-brand-line bg-[#F7F4EF] p-3 sm:p-4"
+              className="max-h-[78vh] w-full overflow-scroll overscroll-contain rounded-[24px] border border-brand-line bg-[#F7F4EF] p-3 sm:p-4"
               style={{ scrollbarGutter: "stable both-edges" }}
             >
-              <div className="relative" style={{ width: CANVAS_WIDTH * layoutScale, height: CANVAS_HEIGHT * layoutScale }}>
+              <div className="relative shrink-0" style={{ width: CANVAS_WIDTH * layoutScale, minWidth: CANVAS_WIDTH * layoutScale, height: CANVAS_HEIGHT * layoutScale }}>
                 <div
                   className="relative origin-top-left"
                   style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT, transform: `scale(${layoutScale})` }}

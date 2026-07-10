@@ -407,6 +407,8 @@ export function SalonPage() {
   const selectedItem = editorItems.find((item) => item.id === selectedItemId) || null;
   const workspaceWidth = Math.max(CANVAS_WIDTH, Math.floor(Math.max(0, canvasViewportSize.width - 40) / Math.max(zoom, 0.01)));
   const workspaceHeight = Math.max(CANVAS_HEIGHT, Math.floor(Math.max(0, canvasViewportSize.height - 40) / Math.max(zoom, 0.01)));
+  const scaledWorkspaceWidth = workspaceWidth * zoom;
+  const scaledWorkspaceHeight = workspaceHeight * zoom;
   const gridSize = Math.max(14, Math.round(GRID_UNIT * zoom));
   const gridBackground = {
     backgroundImage:
@@ -1327,13 +1329,13 @@ export function SalonPage() {
               ref={canvasRef}
               onDragOver={(event) => event.preventDefault()}
               onDrop={handleCanvasDrop}
-              className="h-[78vh] min-h-[720px] min-w-0 overflow-x-auto overflow-y-auto overscroll-contain bg-[#EFE9E0] p-5"
+              className="h-[78vh] min-h-[720px] min-w-0 overflow-scroll overscroll-contain bg-[#EFE9E0] p-5"
               style={{ scrollbarGutter: "stable both-edges" }}
             >
-              <div className="flex min-h-full min-w-full items-start justify-start">
+              <div className="flex min-h-full items-start justify-start" style={{ minWidth: scaledWorkspaceWidth, minHeight: scaledWorkspaceHeight }}>
                 <div
                   className="relative origin-top-left overflow-hidden rounded-[28px] border border-[#D7CCBF] bg-[#F7F4EF] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.35)]"
-                  style={{ width: workspaceWidth * zoom, height: workspaceHeight * zoom, ...gridBackground }}
+                  style={{ width: scaledWorkspaceWidth, height: scaledWorkspaceHeight, ...gridBackground }}
                   onClick={() => setSelectedItemId("")}
                 >
                   <div
