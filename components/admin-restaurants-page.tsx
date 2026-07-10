@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, Mail, Plus, UserCog, Users } from "lucide-react";
+import { Building2, Copy, Mail, Plus, UserCog, Users } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { AppModal } from "./app-modal";
 import { WorkspaceShell } from "./workspace-shell";
@@ -67,6 +67,18 @@ export function AdminRestaurantsPage() {
     }
   }
 
+  async function copyRestaurantIntegrationIds(restaurant: (typeof platformRestaurants)[number]) {
+    const lines = [
+      `FOODIE_RESTAURANT_ID=${restaurant.id}`,
+      ...restaurant.branches.flatMap((branch, branchIndex) => [
+        `FOODIE_BRANCH_${branchIndex + 1}_ID=${branch.id}`,
+        ...((branch.rooms || []).map((room, roomIndex) => `FOODIE_BRANCH_${branchIndex + 1}_ROOM_${roomIndex + 1}_ID=${room.id}`))
+      ])
+    ];
+
+    await navigator.clipboard.writeText(lines.join("\n"));
+  }
+
   if (currentUser?.scope !== "platform") {
     return (
       <WorkspaceShell title="Restaurantes" description="Acceso restringido para administradores de plataforma.">
@@ -126,34 +138,67 @@ export function AdminRestaurantsPage() {
 
         <div className="divide-y divide-brand-line">
           {platformRestaurants.map((restaurant) => (
-            <article key={restaurant.id} className="grid gap-3 px-5 py-4 md:grid-cols-[minmax(0,1.2fr)_140px_140px_140px_140px] md:items-center">
-              <div className="flex min-w-0 items-center gap-4">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#F4511E]">
-                  {restaurant.profileImageUrl ? (
-                    <img src={restaurant.profileImageUrl} alt={restaurant.name} className="h-full w-full object-cover" />
-                  ) : (
-                    <span className="text-lg font-extrabold text-white">{restaurant.name.slice(0, 1).toUpperCase()}</span>
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-base font-semibold text-brand-ink">{restaurant.name}</p>
-                  <p className="mt-1 truncate text-sm text-neutral-500">{restaurant.slug}</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {restaurant.branches.map((branch) => (
-                      <span key={branch.id} className="rounded-full border border-brand-line bg-[#FCFAF7] px-3 py-1 text-xs text-brand-ink">
-                        {branch.name}
-                      </span>
-                    ))}
+            <article key={restaurant.id} className="px-5 py-4">
+              <div className="grid gap-3 md:grid-cols-[minmax(0,1.2fr)_140px_140px_140px_140px] md:items-center">
+                <div className="flex min-w-0 items-center gap-4">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#F4511E]">
+                    {restaurant.profileImageUrl ? (
+                      <img src={restaurant.profileImageUrl} alt={restaurant.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="text-lg font-extrabold text-white">{restaurant.name.slice(0, 1).toUpperCase()}</span>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-base font-semibold text-brand-ink">{restaurant.name}</p>
+                    <p className="mt-1 truncate text-sm text-neutral-500">{restaurant.slug}</p>
+                    <p className="mt-1 break-all font-mono text-[11px] text-neutral-400">restaurantId: {restaurant.id}</p>
                   </div>
                 </div>
+                <p className="text-sm text-brand-ink">{restaurant.users.length}</p>
+                <p className="text-sm text-brand-ink">{restaurant._count.reservations}</p>
+                <p className="text-sm text-brand-ink">{restaurant._count.customers}</p>
+                <div>
+                  <span className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${restaurant.isActive ? "bg-[#E8F7EE] text-[#146C37]" : "bg-[#F1F1F1] text-[#5F5F5F]"}`}>
+                    {restaurant.isActive ? "Activo" : "Inactivo"}
+                  </span>
+                </div>
               </div>
-              <p className="text-sm text-brand-ink">{restaurant.users.length}</p>
-              <p className="text-sm text-brand-ink">{restaurant._count.reservations}</p>
-              <p className="text-sm text-brand-ink">{restaurant._count.customers}</p>
-              <div>
-                <span className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${restaurant.isActive ? "bg-[#E8F7EE] text-[#146C37]" : "bg-[#F1F1F1] text-[#5F5F5F]"}`}>
-                  {restaurant.isActive ? "Activo" : "Inactivo"}
-                </span>
+
+              <div className="mt-4 rounded-[22px] border border-brand-line bg-[#FCFAF7] p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-orange">IDs para n8n</p>
+                    <p className="mt-1 text-xs text-neutral-500">Usar con la API key global. No hace falta crear un token por restaurante.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void copyRestaurantIntegrationIds(restaurant)}
+                    className="inline-flex items-center gap-2 rounded-full border border-brand-line bg-white px-3 py-2 text-xs font-semibold text-brand-ink transition hover:border-brand-orange hover:text-brand-orange"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                    Copiar IDs
+                  </button>
+                </div>
+                <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                  {restaurant.branches.map((branch) => (
+                    <div key={branch.id} className="rounded-[18px] border border-brand-line bg-white p-3">
+                      <p className="text-sm font-semibold text-brand-ink">{branch.name}</p>
+                      <p className="mt-1 break-all font-mono text-[11px] text-neutral-500">branchId: {branch.id}</p>
+                      {(branch.rooms || []).length ? (
+                        <div className="mt-3 space-y-2">
+                          {(branch.rooms || []).map((room) => (
+                            <div key={room.id} className="rounded-2xl bg-[#F7F4EF] px-3 py-2">
+                              <p className="text-xs font-semibold text-brand-ink">{room.name}</p>
+                              <p className="mt-1 break-all font-mono text-[11px] text-neutral-500">roomId: {room.id}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-3 text-xs text-neutral-400">Sin salones cargados.</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             </article>
           ))}

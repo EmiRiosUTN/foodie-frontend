@@ -160,7 +160,12 @@ export type PlatformRestaurantSummary = {
   isActive: boolean;
   chatModuleEnabled: boolean;
   createdAt: string;
-  branches: Array<{ id: string; name: string; timezone: string }>;
+  branches: Array<{
+    id: string;
+    name: string;
+    timezone: string;
+    rooms?: Array<{ id: string; name: string; branchId: string }>;
+  }>;
   users: Array<{
     id: string;
     fullName: string;
@@ -193,7 +198,13 @@ export type PlatformRestaurantDetail = {
   chatWorkflowId?: string | null;
   chatPhoneNumberId?: string | null;
   createdAt: string;
-  branches: Array<{ id: string; name: string; timezone: string; createdAt: string }>;
+  branches: Array<{
+    id: string;
+    name: string;
+    timezone: string;
+    createdAt: string;
+    rooms?: Array<{ id: string; name: string; branchId: string }>;
+  }>;
   users: Array<{
     id: string;
     fullName: string;
