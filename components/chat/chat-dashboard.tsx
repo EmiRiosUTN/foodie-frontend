@@ -515,7 +515,7 @@ export function ChatDashboard() {
         <section className={`${isMobile && showMobileChatList ? "hidden" : "flex"} min-w-0 flex-1 flex-col`}>
           {activeChat ? (
             <>
-              <header className="border-b border-brand-line bg-[rgba(255,252,249,0.76)] px-4 py-4 backdrop-blur md:px-6">
+              <header className="relative z-10 border-b border-brand-line bg-[rgba(255,252,249,0.76)] px-4 py-4 backdrop-blur md:px-6">
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                   <div className="flex min-w-0 items-start gap-3">
                     {isMobile ? (
