@@ -172,9 +172,17 @@ export function ChatDashboard() {
   }, [activeChat, isMobile]);
 
   const handleAddTag = async (chatId: string, tagName: string) => {
+    // Actualización optimista local
+    if (activeChat?.chatId === chatId) {
+      const currentTags = activeChat.tags || [];
+      if (!currentTags.includes(tagName)) {
+        setActiveChat({ ...activeChat, tags: [...currentTags, tagName] });
+      }
+    }
+
     try {
       const result = await tagService.addTagToChat(chatId, tagName);
-      toast.success("Tag agregada", { description: `Se agrego "${tagName}" al chat` });
+      toast.success("Tag agregada", { description: `Se agregó "${tagName}" al chat` });
       if (result.metaEvent?.attempted) {
         if (result.metaEvent.success) {
           toast.success("Evento enviado a Meta", { description: result.metaEvent.eventName || "Evento enviado correctamente" });
@@ -184,16 +192,33 @@ export function ChatDashboard() {
       }
       refreshChats();
     } catch (err: any) {
+      // Revertir en caso de error
+      if (activeChat?.chatId === chatId) {
+        setActiveChat({ ...activeChat, tags: activeChat.tags?.filter(t => t !== tagName) || [] });
+      }
       toast.error("No se pudo agregar la tag", { description: err.message || "Error inesperado" });
     }
   };
 
   const handleRemoveTag = async (chatId: string, tagName: string) => {
+    // Actualización optimista local
+    if (activeChat?.chatId === chatId) {
+      const currentTags = activeChat.tags || [];
+      setActiveChat({ ...activeChat, tags: currentTags.filter((t) => t !== tagName) });
+    }
+
     try {
       await tagService.removeTagFromChat(chatId, tagName);
-      toast.success("Tag removida", { description: `Se removio "${tagName}" del chat` });
+      toast.success("Tag removida", { description: `Se removió "${tagName}" del chat` });
       refreshChats();
     } catch (err: any) {
+      // Revertir en caso de error
+      if (activeChat?.chatId === chatId) {
+        const currentTags = activeChat.tags || [];
+        if (!currentTags.includes(tagName)) {
+          setActiveChat({ ...activeChat, tags: [...currentTags, tagName] });
+        }
+      }
       toast.error("No se pudo remover la tag", { description: err.message || "Error inesperado" });
     }
   };
