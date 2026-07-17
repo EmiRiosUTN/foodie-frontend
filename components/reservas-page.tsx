@@ -72,8 +72,8 @@ export function ReservasPage() {
   const handleCreate = async () => {
     setFormError("");
 
-    if (!reservationForm.fullName.trim() || !reservationForm.phone.trim() || !reservationForm.email.trim()) {
-      setFormError("Completa nombre, telefono y email para crear la reserva.");
+    if (!reservationForm.fullName.trim() || !reservationForm.phone.trim()) {
+      setFormError("Completa nombre y telefono para crear la reserva.");
       return;
     }
 
