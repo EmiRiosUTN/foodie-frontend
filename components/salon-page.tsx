@@ -1797,8 +1797,8 @@ export function SalonPage() {
                   <div className="mt-3 max-h-40 space-y-2 overflow-y-auto pr-1">
                     {tableCombinationOptions.length ? (
                       tableCombinationOptions.map((table) => (
-                        <label key={table.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white px-3 py-2 text-sm font-semibold text-brand-ink">
-                          <span>{table.label} - {table.seats || 0} pax</span>
+                        <label key={table.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white px-3 py-2 text-sm font-semibold text-[#1F1F21]">
+                          <span className="text-[#1F1F21]">{table.label || "Mesa sin nombre"} - {table.seats || 0} pax</span>
                           <input
                             type="checkbox"
                             checked={tableModal.combinationTableIds.includes(table.id)}
@@ -1862,3 +1862,4 @@ export function SalonPage() {
     </WorkspaceShell>
   );
 }
+
