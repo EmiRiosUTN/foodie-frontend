@@ -40,6 +40,7 @@ type EditorItem = {
 type TableItemMetadata = {
   manualFeatures?: {
     hasTvView?: boolean;
+    hasWindowView?: boolean;
   };
   capacity?: {
     minPartySize?: number;
@@ -76,6 +77,7 @@ type TableModalState = {
   isReservable: boolean;
   isCombinable: boolean;
   hasTvView: boolean;
+  hasWindowView: boolean;
   combinationTableIds: string[];
 };
 
@@ -391,6 +393,7 @@ export function SalonPage() {
     isReservable: true,
     isCombinable: false,
     hasTvView: false,
+    hasWindowView: false,
     combinationTableIds: []
   });
   const [combinationKeys, setCombinationKeys] = useState<string[]>([]);
@@ -668,6 +671,7 @@ export function SalonPage() {
       isReservable: item.isReservable ?? true,
       isCombinable: item.isCombinable ?? false,
       hasTvView: Boolean(metadata.manualFeatures?.hasTvView),
+      hasWindowView: Boolean(metadata.manualFeatures?.hasWindowView),
       combinationTableIds: selectedCombinationIds
     });
   }
@@ -683,6 +687,7 @@ export function SalonPage() {
       isReservable: true,
       isCombinable: false,
       hasTvView: false,
+      hasWindowView: false,
       combinationTableIds: []
     });
   }
@@ -912,7 +917,8 @@ export function SalonPage() {
                     maxPartySize
                   },
                   manualFeatures: {
-                    hasTvView: tableModal.hasTvView
+                    hasTvView: tableModal.hasTvView,
+                    hasWindowView: tableModal.hasWindowView
                   }
                 }
               }
@@ -954,7 +960,8 @@ export function SalonPage() {
             maxPartySize
           },
           manualFeatures: {
-            hasTvView: tableModal.hasTvView
+            hasTvView: tableModal.hasTvView,
+            hasWindowView: tableModal.hasWindowView
           }
         }
       }
@@ -997,6 +1004,7 @@ export function SalonPage() {
         isReservable: true,
         isCombinable: false,
         hasTvView: false,
+        hasWindowView: false,
         combinationTableIds: []
       });
       return;
@@ -1693,7 +1701,7 @@ export function SalonPage() {
       <AppModal
         open={Boolean(pendingTableDraft || editingTableItemId)}
         title={editingTableItemId ? "Editar mesa" : "Configurar mesa"}
-        description="Define si la mesa acepta reservas, si puede entrar en combinaciones y si tiene vista a la tele."
+        description="Define si la mesa acepta reservas, si puede entrar en combinaciones y si tiene vista a la tele o a la ventana."
         onClose={closeTableModal}
         widthClassName="max-w-md"
         footer={
@@ -1833,6 +1841,16 @@ export function SalonPage() {
                 Vista a tele
               </label>
 
+
+              <label className="flex items-center gap-3 text-sm font-semibold text-white">
+                <input
+                  type="checkbox"
+                  checked={tableModal.hasWindowView}
+                  onChange={(event) => setTableModal((current) => ({ ...current, hasWindowView: event.target.checked }))}
+                  className="h-4 w-4 accent-brand-orange"
+                />
+                Vista a ventana
+              </label>
               {editingTableItemId && selectedItem && isTableKind(selectedItem.kind) ? (
                 <div className="rounded-2xl border border-brand-line bg-[#FCFAF7] p-4 text-sm text-neutral-600">
                   <p className="font-semibold text-brand-ink">Deteccion automatica</p>
@@ -1862,4 +1880,3 @@ export function SalonPage() {
     </WorkspaceShell>
   );
 }
-
