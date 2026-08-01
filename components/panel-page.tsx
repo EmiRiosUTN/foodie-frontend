@@ -263,7 +263,10 @@ export function PanelPage() {
                           selectedTableId === table.id ? "ring-4 ring-[#FFB088]" : ""
                         }`}
                       >
-                        <span className="block px-2 py-2 text-xs font-semibold">
+                        <span
+                          className="inline-block px-2 py-2 text-xs font-semibold"
+                          style={{ transform: `rotate(${-table.rotation}deg)` }}
+                        >
                           {table.label}
                           <br />
                           {table.seats} pax

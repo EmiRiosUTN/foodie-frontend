@@ -1481,7 +1481,10 @@ export function SalonPage() {
                             shapeClass(item.kind)
                           } ${staticItemClass(item.kind)}`}
                         >
-                          <span className={`px-2 text-xs font-semibold ${item.kind === "wall" || item.kind === "screen" ? "text-white" : "text-brand-ink"}`}>
+                          <span
+                            className={`inline-block px-2 text-xs font-semibold ${item.kind === "wall" || item.kind === "screen" ? "text-white" : "text-brand-ink"}`}
+                            style={isTableKind(item.kind) ? { transform: `rotate(${-item.rotation}deg)` } : undefined}
+                          >
                             {item.label}
                             {item.seats ? (
                               <>
