@@ -1,9 +1,10 @@
 "use client";
 
-import { Info } from "lucide-react";
+import { ChevronDown, Info } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { getEnabledChatModules } from "./chat/chat-module-registry";
 import { StatusAlert } from "./status-alert";
 import { useWorkspace } from "./workspace-provider";
@@ -20,6 +21,8 @@ const platformNavigationItems = [
   { href: "/admin", label: "Restaurantes" },
   { href: "/admin/users", label: "Usuarios" }
 ];
+
+type NavigationItem = { href: string; label: string; children?: Array<{ href: string; label: string }> };
 
 export function WorkspaceHeaderBrand() {
   return (
@@ -75,6 +78,7 @@ export function WorkspaceShell({
   hideIntro?: boolean;
 }) {
   const pathname = usePathname();
+  const [configurationOpen, setConfigurationOpen] = useState(false);
   const { bootstrap, chatSession, currentUser, feedback, userName, logout, selectedBranchId } = useWorkspace();
 
   const branch = bootstrap?.branches.find((item) => item.id === selectedBranchId);
@@ -85,11 +89,12 @@ export function WorkspaceShell({
           label: module.label
         }))
       : [];
-  const restaurantBaseNavigationItems =
+  const configurationItems: NavigationItem["children"] = [{ href: "/configuracion/personalizar", label: "General" }, { href: "/configuracion/reservas", label: "Reservas" }, { href: "/configuracion/reservas-online", label: "Reservas online" }, { href: "/configuracion/asistente", label: "Asistente virtual" }];
+  const restaurantBaseNavigationItems: NavigationItem[] =
     currentUser?.role === "restaurant_owner"
-      ? [...restaurantNavigationItems, { href: "/reservas-online", label: "Reservas online" }, { href: "/usuarios", label: "Usuarios" }]
+      ? [...restaurantNavigationItems, { href: "/configuracion/personalizar", label: "Configuración", children: configurationItems }, { href: "/usuarios", label: "Usuarios" }]
       : restaurantNavigationItems;
-  const navigationItems = currentUser?.scope === "platform" ? platformNavigationItems : [...restaurantBaseNavigationItems, ...chatNavigationItems];
+  const navigationItems: NavigationItem[] = currentUser?.scope === "platform" ? platformNavigationItems : [...restaurantBaseNavigationItems, ...chatNavigationItems];
   const workspaceLabel = currentUser?.scope === "platform" ? "Administracion" : "Operacion";
   const workspaceName = currentUser?.scope === "platform" ? "Foodie AI" : bootstrap?.name || "Restaurante";
   const workspaceImage = currentUser?.scope === "restaurant" ? bootstrap?.profileImageUrl : "";
@@ -107,19 +112,12 @@ export function WorkspaceShell({
               </div>
             </div>
 
-            <nav className="mt-12 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+            <nav className="workspace-nav-scroll mt-12 min-h-0 flex-1 space-y-3 overflow-y-auto pr-2">
               {navigationItems.map((item) => {
                 const active = pathname === item.href || (item.href !== "/chat" && pathname.startsWith(`${item.href}/`));
+                const isConfigurationOpen = Boolean(item.children) && (configurationOpen || pathname.startsWith("/configuracion"));
                 return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex items-center rounded-full px-7 py-3.5 text-base font-bold transition ${
-                      active ? "bg-brand-orange text-white" : "text-white hover:bg-white/10"
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
+                  item.children ? <div key={item.href} className="space-y-2"><button type="button" onClick={() => setConfigurationOpen((current) => !current)} className={`flex w-full items-center gap-3 rounded-full px-7 py-3.5 text-left text-base font-bold transition ${pathname.startsWith("/configuracion") ? "bg-brand-orange text-white" : "text-white hover:bg-white/10"}`}>{item.label}<ChevronDown className={`ml-auto h-4 w-4 transition ${isConfigurationOpen ? "rotate-180" : ""}`} /></button>{isConfigurationOpen ? <div className="ml-5 space-y-1 border-l border-white/20 pl-4">{item.children.map((child) => <Link key={child.href} href={child.href} className={`block rounded-full px-4 py-2 text-sm font-bold ${pathname === child.href ? "bg-white text-brand-orange" : "text-white/75 hover:text-white"}`}>{child.label}</Link>)}</div> : null}</div> : <Link key={item.href} href={item.href} className={`flex items-center rounded-full px-7 py-3.5 text-base font-bold transition ${active ? "bg-brand-orange text-white" : "text-white hover:bg-white/10"}`}>{item.label}</Link>
                 );
               })}
             </nav>
@@ -160,7 +158,7 @@ export function WorkspaceShell({
             </div>
 
             <nav className="mt-4 flex gap-2 overflow-x-auto pb-1">
-              {navigationItems.map((item) => {
+              {navigationItems.flatMap((item) => item.children ? item.children : [item]).map((item) => {
                 const active = pathname === item.href || (item.href !== "/chat" && pathname.startsWith(`${item.href}/`));
                 return (
                   <Link

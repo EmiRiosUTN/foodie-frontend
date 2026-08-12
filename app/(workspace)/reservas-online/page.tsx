@@ -1,3 +1,3 @@
-import { OnlineBookingsPage } from "../../../components/online-bookings-page";
+import { redirect } from "next/navigation";
 
-export default function OnlineBookingsRoute() { return <OnlineBookingsPage />; }
+export default function OnlineBookingsRoute() { redirect("/configuracion/reservas-online"); }

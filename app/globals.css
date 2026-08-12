@@ -41,6 +41,28 @@ body {
   margin: 14mm;
 }
 
+.workspace-nav-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.38) transparent;
+}
+
+.workspace-nav-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+.workspace-nav-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.workspace-nav-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.workspace-nav-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.58);
+}
+
 .print-page {
   box-sizing: border-box;
   width: min(100%, 1120px);
