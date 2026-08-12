@@ -116,6 +116,7 @@ type WorkspaceContextValue = {
   loadRestaurantChatActivity: (filters?: { restaurantUserId?: string; limit?: number }) => Promise<ChatActivityLog[]>;
   loadPlatformRestaurantDetail: (restaurantId: string) => Promise<PlatformRestaurantDetail>;
   uploadPlatformRestaurantProfileImage: (file: File) => Promise<string>;
+  configurePlatformRestaurantChat: (restaurantId: string, input: { email: string; password: string }) => Promise<void>;
   createPlatformRestaurant: (input: {
     restaurantName: string;
     slug: string;
@@ -220,27 +221,6 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     });
   }
 
-  async function loginToChat(email: string, password: string) {
-    const response = await fetch(`${CHAT_API_URL}/auth/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ email, password })
-    });
-
-    if (!response.ok) {
-      throw new Error("No se pudo iniciar sesion en el modulo chat");
-    }
-
-    const data = await response.json();
-    window.localStorage.setItem("auth_token", data.token);
-    window.localStorage.setItem("user_data", JSON.stringify(data.user));
-    setChatSession({
-      token: data.token,
-      user: data.user
-    });
-  }
 
   async function loadBootstrap(authToken = token) {
     const response = await fetch(`${API_URL}/restaurant/bootstrap`, {
@@ -402,12 +382,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
           window.localStorage.setItem("user_data", JSON.stringify(data.chatSession.user));
           setChatSession(data.chatSession);
         } else {
-          try {
-            await loginToChat(email, password);
-          } catch (error) {
-            clearChatSession();
-            setFeedback(error instanceof Error ? error.message : "No se pudo iniciar sesion en chat");
-          }
+          clearChatSession();
+          setFeedback("Chat no esta configurado o las credenciales del restaurante no son validas.");
         }
       } else {
         clearChatSession();
@@ -749,6 +725,19 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     return data.url;
   }
 
+  async function configurePlatformRestaurantChat(restaurantId: string, input: { email: string; password: string }) {
+    try {
+      await api(`/platform/restaurants/${restaurantId}/chat-auth`, {
+        method: "PATCH",
+        body: JSON.stringify(input)
+      });
+      setFeedback("Credenciales de Chat configuradas para el restaurante");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudieron guardar las credenciales de Chat";
+      setFeedback(message);
+      throw error;
+    }
+  }
   async function createPlatformRestaurant(input: {
     restaurantName: string;
     slug: string;
@@ -880,6 +869,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       loadRestaurantChatActivity,
       loadPlatformRestaurantDetail,
       uploadPlatformRestaurantProfileImage,
+      configurePlatformRestaurantChat,
       createPlatformRestaurant,
       createPlatformRestaurantUser,
       updatePlatformRestaurantUser,
