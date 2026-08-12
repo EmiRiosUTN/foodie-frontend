@@ -87,7 +87,7 @@ export function WorkspaceShell({
       : [];
   const restaurantBaseNavigationItems =
     currentUser?.role === "restaurant_owner"
-      ? [...restaurantNavigationItems, { href: "/usuarios", label: "Usuarios" }]
+      ? [...restaurantNavigationItems, { href: "/reservas-online", label: "Reservas online" }, { href: "/usuarios", label: "Usuarios" }]
       : restaurantNavigationItems;
   const navigationItems = currentUser?.scope === "platform" ? platformNavigationItems : [...restaurantBaseNavigationItems, ...chatNavigationItems];
   const workspaceLabel = currentUser?.scope === "platform" ? "Administracion" : "Operacion";

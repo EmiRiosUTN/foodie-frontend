@@ -235,6 +235,7 @@ export type Reservation = {
   email: string;
   partySize: number;
   status: string;
+  source?: "admin" | "integration" | "public_web";
   turn: "mediodia" | "noche";
   serviceDate: string;
   serviceTime: string;
