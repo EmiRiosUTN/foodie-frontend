@@ -36,3 +36,40 @@ body {
     @apply border-brand-orange bg-brand-orange text-white;
   }
 }
+@page {
+  size: A4;
+  margin: 14mm;
+}
+
+.print-page {
+  box-sizing: border-box;
+  width: min(100%, 1120px);
+  margin: 32px auto;
+  padding: 44px;
+  background: white;
+  color: #18181b;
+  font-family: Arial, sans-serif;
+}
+
+.print-feedback { padding: 48px; font-family: Arial, sans-serif; }
+.print-actions { display: flex; justify-content: flex-end; margin-bottom: 28px; }
+.print-actions button { border: 0; border-radius: 8px; background: #ea580c; color: white; cursor: pointer; font-weight: 700; padding: 12px 18px; }
+.print-kicker { color: #ea580c; font-size: 12px; font-weight: 700; letter-spacing: .12em; margin: 0 0 8px; text-transform: uppercase; }
+.print-title { font-size: 28px; margin: 0; }
+.print-branch { color: #52525b; font-size: 15px; margin: 10px 0 26px; }
+.print-summary { border-top: 1px solid #d4d4d8; border-bottom: 1px solid #d4d4d8; display: flex; gap: 44px; margin-bottom: 24px; padding: 14px 0; }
+.print-summary div { display: grid; gap: 3px; }
+.print-summary span { color: #71717a; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.print-summary strong { font-size: 20px; }
+.print-table { border-collapse: collapse; font-size: 12px; table-layout: fixed; width: 100%; }
+.print-table th { border-bottom: 2px solid #18181b; font-size: 10px; letter-spacing: .06em; padding: 8px 6px; text-align: left; text-transform: uppercase; }
+.print-table td { border-bottom: 1px solid #d4d4d8; overflow-wrap: anywhere; padding: 10px 6px; vertical-align: top; }
+.print-empty { border: 1px solid #d4d4d8; color: #52525b; padding: 28px; text-align: center; }
+
+@media print {
+  body { background: white; }
+  .print-page { margin: 0; padding: 0; width: 100%; }
+  .print-actions { display: none; }
+  .print-table thead { display: table-header-group; }
+  .print-table tr { break-inside: avoid; }
+}

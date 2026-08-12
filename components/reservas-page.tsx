@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, CheckCircle2, Clock3, Download, Plus, Search, Users } from "lucide-react";
+import { CalendarDays, CheckCircle2, Clock3, Download, Plus, Printer, Search, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { Reservation } from "../lib/types";
 import { AppModal } from "./app-modal";
@@ -137,6 +137,12 @@ export function ReservasPage() {
     );
   };
 
+  const printDailyReservations = () => {
+    if (!selectedBranchId || !selectedDate) return;
+    const query = new URLSearchParams({ branchId: selectedBranchId, date: selectedDate });
+    window.open(`/imprimir-reservas?${query.toString()}`, "_blank", "noopener,noreferrer");
+  };
+
   return (
     <WorkspaceShell
       title="Reservas"
@@ -171,17 +177,27 @@ export function ReservasPage() {
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-orange">Turno activo</p>
               <h2 className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-brand-ink">Reservas del turno</h2>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                setFormError("");
-                setCreateOpen(true);
-              }}
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-orange px-5 py-3 text-sm font-medium text-white"
-            >
-              <Plus className="h-4 w-4" />
-              Nueva reserva
-            </button>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={printDailyReservations}
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-brand-line px-5 py-3 text-sm font-medium text-brand-ink"
+              >
+                <Printer className="h-4 w-4" />
+                Imprimir reservas del dia
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFormError("");
+                  setCreateOpen(true);
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-orange px-5 py-3 text-sm font-medium text-white"
+              >
+                <Plus className="h-4 w-4" />
+                Nueva reserva
+              </button>
+            </div>
           </div>
 
           <div className="grid gap-3 md:grid-cols-[minmax(0,220px)_180px] md:items-end">

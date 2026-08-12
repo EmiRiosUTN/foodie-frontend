@@ -238,6 +238,8 @@ export type Reservation = {
   turn: "mediodia" | "noche";
   serviceDate: string;
   serviceTime: string;
+  preferredZone?: string | null;
+  notes?: string | null;
   branch?: { id: string; name: string };
   room: { id: string; name: string };
   customer?: { id: string; fullName: string; tags: Array<{ id: string; label: string }> } | null;
