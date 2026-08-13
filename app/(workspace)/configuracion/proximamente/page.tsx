@@ -1,5 +1,5 @@
 import { ConfigurationComingSoonPage } from "../../../../components/configuration-coming-soon-page";
 
-export default function PersonalizeRestaurantRoute() {
+export default function ConfigurationComingSoonRoute() {
   return <ConfigurationComingSoonPage />;
 }
