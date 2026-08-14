@@ -89,7 +89,7 @@ export function WorkspaceShell({
           label: module.label
         }))
       : [];
-const configurationItems: NavigationItem["children"] = [{ href: "/configuracion/proximamente", label: "Próximamente" }, { href: "/configuracion/reservas", label: "Reservas" }, { href: "/configuracion/reservas-online", label: "Reservas online" }];
+const configurationItems: NavigationItem["children"] = [{ href: "/configuracion/personalizar", label: "Restaurante" }, { href: "/configuracion/asistente", label: "Asistente virtual" }, { href: "/configuracion/reservas", label: "Reservas" }, { href: "/configuracion/reservas-online", label: "Reservas online" }];
   const restaurantBaseNavigationItems: NavigationItem[] =
     currentUser?.role === "restaurant_owner"
       ? [...restaurantNavigationItems, { href: "/configuracion/personalizar", label: "Configuración", children: configurationItems }, { href: "/usuarios", label: "Usuarios" }]
