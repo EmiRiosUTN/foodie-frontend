@@ -178,6 +178,7 @@ export type PlatformRestaurantSummary = {
     label: string;
     isActive: boolean;
     createdAt: string;
+    apiKey?: string | null;
   }>;
   _count: {
     rooms: number;
@@ -219,6 +220,7 @@ export type PlatformRestaurantDetail = {
     isActive: boolean;
     lastUsedAt?: string | null;
     createdAt: string;
+    apiKey?: string | null;
   }>;
   _count: {
     rooms: number;

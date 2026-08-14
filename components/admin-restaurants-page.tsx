@@ -1,7 +1,7 @@
 "use client";
 
 import { Building2, Copy, Mail, Plus, UserCog, Users } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppModal } from "./app-modal";
 import { WorkspaceShell } from "./workspace-shell";
 import { useWorkspace } from "./workspace-provider";
@@ -35,6 +35,13 @@ export function AdminRestaurantsPage() {
   const [profileUploading, setProfileUploading] = useState(false);
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [generatingApiKey, setGeneratingApiKey] = useState("");
+  useEffect(() => {
+    const persisted = Object.fromEntries(platformRestaurants.flatMap((restaurant) => {
+      const key = restaurant.integrationTokens.find((token) => token.isActive)?.apiKey;
+      return key ? [[restaurant.id, key]] : [];
+    }));
+    setApiKeys((current) => ({ ...persisted, ...current }));
+  }, [platformRestaurants]);
   const profileInputRef = useRef<HTMLInputElement>(null);
 
   const metrics = useMemo(() => {
