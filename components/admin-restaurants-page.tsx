@@ -29,10 +29,12 @@ const initialRestaurantForm: RestaurantFormState = {
 };
 
 export function AdminRestaurantsPage() {
-  const { currentUser, platformRestaurants, createPlatformRestaurant, uploadPlatformRestaurantProfileImage } = useWorkspace();
+  const { currentUser, platformRestaurants, createPlatformRestaurant, uploadPlatformRestaurantProfileImage, rotatePlatformRestaurantToken } = useWorkspace();
   const [restaurantModalOpen, setRestaurantModalOpen] = useState(false);
   const [restaurantForm, setRestaurantForm] = useState<RestaurantFormState>(initialRestaurantForm);
   const [profileUploading, setProfileUploading] = useState(false);
+  const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+  const [generatingApiKey, setGeneratingApiKey] = useState("");
   const profileInputRef = useRef<HTMLInputElement>(null);
 
   const metrics = useMemo(() => {
@@ -77,6 +79,16 @@ export function AdminRestaurantsPage() {
     ];
 
     await navigator.clipboard.writeText(lines.join("\n"));
+  }
+
+  async function generateRestaurantApiKey(restaurantId: string) {
+    setGeneratingApiKey(restaurantId);
+    try {
+      const result = await rotatePlatformRestaurantToken(restaurantId);
+      setApiKeys((current) => ({ ...current, [restaurantId]: result.rawApiToken }));
+    } finally {
+      setGeneratingApiKey("");
+    }
   }
 
   if (currentUser?.scope !== "platform") {
@@ -167,8 +179,8 @@ export function AdminRestaurantsPage() {
               <div className="mt-4 rounded-[22px] border border-brand-line bg-[#FCFAF7] p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-orange">IDs para n8n</p>
-                    <p className="mt-1 text-xs text-neutral-500">Usar con la API key global. No hace falta crear un token por restaurante.</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-orange">Credencial para WhatsApp</p>
+                    <p className="mt-1 text-xs text-neutral-500">Generada por el superusuario. Identifica únicamente a este restaurante en la API externa.</p>
                   </div>
                   <button
                     type="button"
@@ -178,6 +190,19 @@ export function AdminRestaurantsPage() {
                     <Copy className="h-3.5 w-3.5" />
                     Copiar IDs
                   </button>
+                </div>
+                <div className="mt-3 rounded-[18px] border border-brand-line bg-white p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-brand-ink">API key del restaurante</p>
+                      {apiKeys[restaurant.id] ? <p className="mt-1 break-all font-mono text-xs text-brand-ink">{apiKeys[restaurant.id]}</p> : <p className="mt-1 text-xs text-neutral-400">Todavía no se generó una credencial en esta sesión.</p>}
+                    </div>
+                    <div className="flex gap-2">
+                      {apiKeys[restaurant.id] ? <button type="button" onClick={() => void navigator.clipboard.writeText(apiKeys[restaurant.id])} className="inline-flex items-center gap-2 rounded-full border border-brand-line px-3 py-2 text-xs font-semibold text-brand-ink"><Copy className="h-3.5 w-3.5" />Copiar key</button> : null}
+                      <button type="button" disabled={generatingApiKey === restaurant.id} onClick={() => void generateRestaurantApiKey(restaurant.id)} className="rounded-full bg-brand-orange px-3 py-2 text-xs font-semibold text-white">{generatingApiKey === restaurant.id ? "Generando..." : apiKeys[restaurant.id] ? "Rotar key" : "Generar key"}</button>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-[11px] text-neutral-500">Al rotarla, la credencial anterior deja de funcionar. Guardala en n8n porque Foodie no almacena el valor original.</p>
                 </div>
                 <div className="mt-3 grid gap-3 lg:grid-cols-2">
                   {restaurant.branches.map((branch) => (

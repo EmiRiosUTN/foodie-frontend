@@ -115,6 +115,7 @@ type WorkspaceContextValue = {
   loadRestaurantActivity: (filters?: { restaurantUserId?: string; limit?: number }) => Promise<RestaurantActivityLog[]>;
   loadRestaurantChatActivity: (filters?: { restaurantUserId?: string; limit?: number }) => Promise<ChatActivityLog[]>;
   loadPlatformRestaurantDetail: (restaurantId: string) => Promise<PlatformRestaurantDetail>;
+  rotatePlatformRestaurantToken: (restaurantId: string) => Promise<{ rawApiToken: string }>;
   uploadPlatformRestaurantProfileImage: (file: File) => Promise<string>;
   configurePlatformRestaurantChat: (restaurantId: string, input: { email: string; password: string }) => Promise<void>;
   createPlatformRestaurant: (input: {
@@ -762,6 +763,13 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  async function rotatePlatformRestaurantToken(restaurantId: string) {
+    return api<{ rawApiToken: string }>(`/platform/restaurants/${restaurantId}/integration-tokens/rotate`, {
+      method: "POST",
+      body: JSON.stringify({ label: "WhatsApp assistant" })
+    });
+  }
+
   async function createPlatformRestaurantUser(
     restaurantId: string,
     input: { fullName: string; email: string; password: string; role: RestaurantUserRole }
@@ -869,6 +877,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       loadRestaurantChatActivity,
       loadPlatformRestaurantDetail,
       uploadPlatformRestaurantProfileImage,
+      rotatePlatformRestaurantToken,
       configurePlatformRestaurantChat,
       createPlatformRestaurant,
       createPlatformRestaurantUser,
