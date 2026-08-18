@@ -79,6 +79,7 @@ const CHAT_MODULES: ChatModuleDefinition[] = [
 ];
 
 const INTERNAL_FEATURES = new Set<ChatClientFeatureKey>(["conversationSummary", "sendTemplates"]);
+const HIDDEN_CHAT_MODULES = new Set<ChatModuleKey>(["advisors", "advisorMetrics"]);
 
 function formatUnknownModuleLabel(key: string) {
   return key
@@ -109,12 +110,13 @@ export function getEnabledChatModules(user?: {
 } | null) {
   if (!user) return [];
 
-  const knownModules = CHAT_MODULES.filter((module) => user.featureFlags?.[module.featureKey] === true);
+  const knownModules = CHAT_MODULES.filter((module) => user.featureFlags?.[module.featureKey] === true && !HIDDEN_CHAT_MODULES.has(module.key));
 
   const dynamicModules = Object.entries(user.featureFlags || {})
     .filter(([key, enabled]) => {
       if (!enabled) return false;
       if (CHAT_MODULES.some((module) => module.key === key)) return false;
+      if (HIDDEN_CHAT_MODULES.has(key)) return false;
       if (INTERNAL_FEATURES.has(key as ChatClientFeatureKey)) return false;
       return true;
     })
@@ -131,6 +133,7 @@ export function isChatModuleAllowed(
   } | null
 ) {
   if (!user) return false;
+  if (HIDDEN_CHAT_MODULES.has(moduleKey)) return false;
   const module = getChatModuleDefinition(moduleKey);
   return user.featureFlags?.[module.featureKey] === true;
 }

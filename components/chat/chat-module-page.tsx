@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { chatApi } from "./chat-api";
 import { getChatModuleDefinition, isChatModuleAllowed } from "./chat-module-registry";
 import { ChatAuthProvider } from "./chat-auth";
-import { ChatAdvisorsModule } from "./chat-advisors-module";
 import { ChatAssistantModule } from "./chat-assistant-module";
 import { ChatCampaignsModule } from "./chat-campaigns-module";
 import { ChatWhatsAppCampaignsModule } from "./chat-whatsapp-campaigns-module";
@@ -233,7 +232,7 @@ export function ChatModulePage({ moduleKey }: { moduleKey: string }) {
       return;
     }
 
-    if (moduleKey === "campaigns" || moduleKey === "whatsappCampaigns" || moduleKey === "advisors" || moduleKey === "assistant") {
+    if (moduleKey === "campaigns" || moduleKey === "whatsappCampaigns" || moduleKey === "assistant") {
       setState({ loading: false, error: "", data: null });
       return;
     }
@@ -302,8 +301,6 @@ export function ChatModulePage({ moduleKey }: { moduleKey: string }) {
         <ChatCampaignsModule />
       ) : moduleKey === "whatsappCampaigns" ? (
         <ChatWhatsAppCampaignsModule />
-      ) : moduleKey === "advisors" ? (
-        <ChatAdvisorsModule />
       ) : moduleKey === "assistant" ? (
         <ChatAssistantModule />
       ) : (
