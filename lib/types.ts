@@ -77,7 +77,7 @@ export type Bootstrap = {
   branches: Branch[];
 };
 
-export type RestaurantUserRole = "restaurant_owner" | "restaurant_manager" | "host" | "waiter" | "cashier" | "kitchen";
+export type RestaurantUserRole = "restaurant_owner" | "restaurant_manager" | "host" | "waiter" | "cashier" | "kitchen" | "events";
 
 export type RestaurantStaffUser = {
   id: string;

@@ -26,6 +26,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toaster, toast } from "sonner";
 import { ConfirmDialog } from "../confirm-dialog";
+import { useWorkspace } from "../workspace-provider";
 import { useChatAuth } from "./chat-auth";
 import { useChat } from "./chat-context";
 import { ChatExportModal } from "./chat-export-modal";
@@ -114,8 +115,13 @@ function getAvatarText(chat: Chat) {
     .toUpperCase();
 }
 
+function isEventChat(chat: Chat) {
+  return chat.tags?.some((tag) => tag.trim().toLocaleLowerCase("es-AR") === "evento") ?? false;
+}
+
 export function ChatDashboard() {
   const { user } = useChatAuth();
+  const { currentUser } = useWorkspace();
   const {
     chats,
     activeChat,
@@ -339,9 +345,13 @@ export function ChatDashboard() {
     });
   }, [chats]);
 
+  const isEventsUser = currentUser?.role === "events";
+
+  const scopedChats = useMemo(() => (isEventsUser ? sortedChats.filter(isEventChat) : sortedChats), [isEventsUser, sortedChats]);
+
   const availableTags = useMemo(() => {
     const tagMap = new Map<string, string>();
-    sortedChats.forEach((chat) => {
+    scopedChats.forEach((chat) => {
       chat.tags?.forEach((tagName) => {
         const tag = tagService.getTag(tagName);
         if (tag && !tagMap.has(tagName)) {
@@ -350,17 +360,21 @@ export function ChatDashboard() {
       });
     });
     return Array.from(tagMap.entries()).map(([name, color]) => ({ name, color }));
-  }, [sortedChats, tagService.tags]);
+  }, [scopedChats, tagService.tags]);
 
   const filteredChats = useMemo(() => {
-    if (!selectedTagFilter) return sortedChats;
-    return sortedChats.filter((chat) => chat.tags?.includes(selectedTagFilter));
-  }, [selectedTagFilter, sortedChats]);
+    if (!selectedTagFilter) return scopedChats;
+    return scopedChats.filter((chat) => chat.tags?.includes(selectedTagFilter));
+  }, [scopedChats, selectedTagFilter]);
 
   const displayChats = useMemo(() => {
-    if (isSearchActive) return searchResults;
+    if (isSearchActive) return isEventsUser ? searchResults.filter(isEventChat) : searchResults;
     return filteredChats;
-  }, [filteredChats, isSearchActive, searchResults]);
+  }, [filteredChats, isEventsUser, isSearchActive, searchResults]);
+
+  useEffect(() => {
+    if (isEventsUser && activeChat && !isEventChat(activeChat)) setActiveChat(null);
+  }, [activeChat, isEventsUser, setActiveChat]);
 
   const messageGroups = useMemo(() => groupMessagesByDate(messages), [messages]);
 
@@ -420,6 +434,7 @@ export function ChatDashboard() {
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-orange">Inbox operativo</p>
                 <h2 className="mt-1 text-xl font-semibold text-brand-ink">Conversaciones</h2>
+                {isEventsUser ? <p className="mt-1 text-xs font-medium text-neutral-500">Sólo conversaciones con etiqueta Evento</p> : null}
               </div>
               <div className="flex items-center gap-2">
                 <button type="button" onClick={() => setIsExportModalOpen(true)} className="rounded-full border border-[#E6D8CB] bg-[#FFF9F4] p-2 text-neutral-500 transition hover:border-[#D9C1AF] hover:bg-white hover:text-brand-ink" title="Exportar chats">

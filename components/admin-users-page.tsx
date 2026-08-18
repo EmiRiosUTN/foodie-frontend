@@ -14,7 +14,7 @@ type UserFormState = {
   fullName: string;
   email: string;
   password: string;
-  role: "restaurant_owner" | "restaurant_manager" | "host" | "waiter" | "cashier" | "kitchen";
+  role: "restaurant_owner" | "restaurant_manager" | "host" | "waiter" | "cashier" | "kitchen" | "events";
   isActive: boolean;
 };
 
@@ -32,7 +32,8 @@ const roleOptions: Array<UserFormState["role"]> = [
   "host",
   "waiter",
   "cashier",
-  "kitchen"
+  "kitchen",
+  "events"
 ];
 
 function roleLabel(role: UserFormState["role"] | string) {

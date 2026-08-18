@@ -19,7 +19,7 @@ type UserFormState = {
   isActive: boolean;
 };
 
-export const roleOptions: RestaurantUserRole[] = ["restaurant_owner", "restaurant_manager", "host", "waiter", "cashier", "kitchen"];
+export const roleOptions: RestaurantUserRole[] = ["restaurant_owner", "restaurant_manager", "host", "waiter", "cashier", "kitchen", "events"];
 
 const initialUserForm: UserFormState = {
   fullName: "",

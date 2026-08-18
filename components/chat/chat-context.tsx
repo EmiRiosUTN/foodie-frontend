@@ -12,7 +12,7 @@ type ChatContextValue = {
   messages: Message[];
   isLoading: boolean;
   error: string | null;
-  setActiveChat: (chat: Chat) => void;
+  setActiveChat: (chat: Chat | null) => void;
   toggleChatMode: (chatId: string) => void;
   sendMessage: (content: string) => Promise<void>;
   sendMediaMessage: (file: File, caption?: string) => Promise<void>;
@@ -382,8 +382,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     setIsSearching(false);
   }, []);
 
-  const handleSetActiveChat = useCallback((chat: Chat) => {
+  const handleSetActiveChat = useCallback((chat: Chat | null) => {
     setActiveChat(chat);
+    if (!chat) return;
     setChats((current) => current.map((item) => (item.chatId === chat.chatId ? { ...item, unreadCount: 0 } : item)));
   }, []);
 

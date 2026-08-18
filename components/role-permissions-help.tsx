@@ -34,6 +34,10 @@ export const restaurantRolePermissions: Record<RestaurantUserRole, RolePermissio
   kitchen: {
     label: "Cocina",
     description: "Accede a los módulos operativos. No administra usuarios, configuración ni el plano del salón."
+  },
+  events: {
+    label: "Eventos",
+    description: "Tiene los mismos permisos que Recepción. En Chat sólo ve conversaciones con la etiqueta Evento."
   }
 };
 
