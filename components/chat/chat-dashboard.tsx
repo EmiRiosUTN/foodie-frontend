@@ -161,7 +161,7 @@ export function ChatDashboard() {
   }, []);
 
   useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth < 1024);
+    const onResize = () => setIsMobile(window.innerWidth < 1280);
     onResize();
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
@@ -411,10 +411,10 @@ export function ChatDashboard() {
   };
 
   return (
-    <div className="min-h-[78vh] overflow-hidden rounded-[28px] border border-[#E9DED3] bg-[linear-gradient(180deg,#FFFCF9_0%,#F8F4EE_100%)]">
+    <div className="h-[78vh] min-h-[420px] overflow-hidden rounded-[28px] border border-[#E9DED3] bg-[linear-gradient(180deg,#FFFCF9_0%,#F8F4EE_100%)] xl:h-[calc(100dvh-18rem)] xl:min-h-[420px] 2xl:h-[78vh] 2xl:min-h-[620px]">
       <Toaster position="top-right" richColors />
-      <div className="flex h-[78vh] min-h-[620px] flex-col lg:flex-row">
-        <section className={`${isMobile && !showMobileChatList ? "hidden" : "flex"} w-full shrink-0 flex-col border-b border-brand-line bg-[#FBF7F2] lg:w-[380px] lg:border-b-0 lg:border-r`}>
+      <div className="flex h-full min-h-[420px] flex-col xl:flex-row 2xl:min-h-[620px]">
+        <section className={`${isMobile && !showMobileChatList ? "hidden" : "flex"} w-full shrink-0 flex-col border-b border-brand-line bg-[#FBF7F2] xl:w-[320px] xl:border-b-0 xl:border-r 2xl:w-[380px]`}>
           <div className="border-b border-brand-line px-5 py-4">
             <div className="flex items-center justify-between gap-3">
               <div>

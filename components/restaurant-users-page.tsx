@@ -7,6 +7,7 @@ import type { RestaurantStaffUser, RestaurantUserRole } from "../lib/types";
 import { AppModal } from "./app-modal";
 import { ConfirmDialog } from "./confirm-dialog";
 import { FoodieSelect } from "./foodie-select";
+import { restaurantRoleLabel, RolePermissionsHelp } from "./role-permissions-help";
 import { WorkspaceShell } from "./workspace-shell";
 import { useWorkspace } from "./workspace-provider";
 
@@ -29,22 +30,7 @@ const initialUserForm: UserFormState = {
 };
 
 export function roleLabel(role: string) {
-  switch (role) {
-    case "restaurant_owner":
-      return "Principal";
-    case "restaurant_manager":
-      return "Encargado";
-    case "host":
-      return "Recepcion";
-    case "waiter":
-      return "Mozo";
-    case "cashier":
-      return "Caja";
-    case "kitchen":
-      return "Cocina";
-    default:
-      return role;
-  }
+  return restaurantRoleLabel(role);
 }
 
 function monthKey(date: Date) {
@@ -303,7 +289,7 @@ export function RestaurantUsersPage() {
             <input type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} className="foodie-input" placeholder="Ej: usuario@restaurante.com" />
           </label>
           <label className="space-y-2 text-sm text-brand-ink">
-            <span className="font-medium">Rol</span>
+            <span className="flex items-center gap-2 font-medium">Rol <RolePermissionsHelp /></span>
             <FoodieSelect value={form.role} onChange={(event) => setForm((current) => ({ ...current, role: event.target.value as RestaurantUserRole }))}>
               {roleOptions.map((role) => (
                 <option key={role} value={role}>

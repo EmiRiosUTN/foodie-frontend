@@ -101,42 +101,42 @@ const configurationItems: NavigationItem["children"] = [{ href: "/configuracion/
 
   return (
     <div className="h-screen overflow-hidden bg-black">
-      <div className="grid h-screen bg-[radial-gradient(circle_at_85%_10%,rgba(0,0,0,0.85)_0,rgba(0,0,0,0.94)_31%,transparent_52%),linear-gradient(135deg,#F4511E_0%,#7A372C_42%,#050505_76%)] xl:grid-cols-[320px_minmax(0,1fr)]">
+      <div className="grid h-screen bg-[radial-gradient(circle_at_85%_10%,rgba(0,0,0,0.85)_0,rgba(0,0,0,0.94)_31%,transparent_52%),linear-gradient(135deg,#F4511E_0%,#7A372C_42%,#050505_76%)] xl:grid-cols-[240px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)]">
         <aside className="hidden h-screen overflow-hidden border-r border-white/10 bg-[#1F1F21] text-white xl:block">
-          <div className="flex h-full flex-col px-10 py-14">
-            <div className="flex items-center gap-4">
+          <div className="flex h-full flex-col px-10 py-14 xl:px-6 xl:py-8 2xl:px-10 2xl:py-14">
+            <div className="flex items-center gap-4 xl:gap-3 2xl:gap-4">
               <RestaurantAvatar image={workspaceImage} name={workspaceName} />
               <div className="min-w-0">
-                <p className="truncate text-base font-extrabold leading-tight text-white">{workspaceName}</p>
-                <p className="mt-0.5 text-sm font-semibold italic text-white">by Foodie AI</p>
+                <p className="truncate text-base font-extrabold leading-tight text-white xl:text-sm 2xl:text-base">{workspaceName}</p>
+                <p className="mt-0.5 text-sm font-semibold italic text-white xl:text-xs 2xl:text-sm">by Foodie AI</p>
               </div>
             </div>
 
-            <nav className="workspace-nav-scroll mt-12 min-h-0 flex-1 space-y-3 overflow-y-auto pr-2">
+            <nav className="workspace-nav-scroll mt-12 min-h-0 flex-1 space-y-3 overflow-y-auto pr-2 xl:mt-8 xl:space-y-2 2xl:mt-12 2xl:space-y-3">
               {navigationItems.map((item) => {
                 const active = pathname === item.href || (item.href !== "/chat" && pathname.startsWith(`${item.href}/`));
                 const isConfigurationOpen = Boolean(item.children) && (configurationOpen || pathname.startsWith("/configuracion"));
                 return (
-                  item.children ? <div key={item.href} className="space-y-2"><button type="button" onClick={() => setConfigurationOpen((current) => !current)} className={`flex w-full items-center gap-3 rounded-full px-7 py-3.5 text-left text-base font-bold transition ${pathname.startsWith("/configuracion") ? "bg-brand-orange text-white" : "text-white hover:bg-white/10"}`}>{item.label}<ChevronDown className={`ml-auto h-4 w-4 transition ${isConfigurationOpen ? "rotate-180" : ""}`} /></button>{isConfigurationOpen ? <div className="ml-5 space-y-1 border-l border-white/20 pl-4">{item.children.map((child) => <Link key={child.href} href={child.href} className={`block rounded-full px-4 py-2 text-sm font-bold ${pathname === child.href ? "bg-white text-brand-orange" : "text-white/75 hover:text-white"}`}>{child.label}</Link>)}</div> : null}</div> : <Link key={item.href} href={item.href} className={`flex items-center rounded-full px-7 py-3.5 text-base font-bold transition ${active ? "bg-brand-orange text-white" : "text-white hover:bg-white/10"}`}>{item.label}</Link>
+                  item.children ? <div key={item.href} className="space-y-2"><button type="button" onClick={() => setConfigurationOpen((current) => !current)} className={`flex w-full items-center gap-3 rounded-full px-7 py-3.5 text-left text-base font-bold transition xl:px-5 xl:py-2.5 xl:text-sm 2xl:px-7 2xl:py-3.5 2xl:text-base ${pathname.startsWith("/configuracion") ? "bg-brand-orange text-white" : "text-white hover:bg-white/10"}`}>{item.label}<ChevronDown className={`ml-auto h-4 w-4 transition ${isConfigurationOpen ? "rotate-180" : ""}`} /></button>{isConfigurationOpen ? <div className="ml-5 space-y-1 border-l border-white/20 pl-4 xl:ml-3 xl:pl-3 2xl:ml-5 2xl:pl-4">{item.children.map((child) => <Link key={child.href} href={child.href} className={`block rounded-full px-4 py-2 text-sm font-bold xl:px-3 xl:py-1.5 xl:text-xs 2xl:px-4 2xl:py-2 2xl:text-sm ${pathname === child.href ? "bg-white text-brand-orange" : "text-white/75 hover:text-white"}`}>{child.label}</Link>)}</div> : null}</div> : <Link key={item.href} href={item.href} className={`flex items-center rounded-full px-7 py-3.5 text-base font-bold transition xl:px-5 xl:py-2.5 xl:text-sm 2xl:px-7 2xl:py-3.5 2xl:text-base ${active ? "bg-brand-orange text-white" : "text-white hover:bg-white/10"}`}>{item.label}</Link>
                 );
               })}
             </nav>
 
             {currentUser?.scope === "restaurant" ? (
-              <div className="mt-8 rounded-[24px] border border-white/10 bg-white/5 p-4">
+              <div className="mt-8 rounded-[24px] border border-white/10 bg-white/5 p-4 xl:mt-5 xl:rounded-[18px] xl:p-3 2xl:mt-8 2xl:rounded-[24px] 2xl:p-4">
                 <p className="text-xs uppercase tracking-[0.2em] text-white/45">Sucursal activa</p>
                 <p className="mt-2 text-sm font-semibold text-white">{branch?.name || "-"}</p>
               </div>
             ) : (
-              <div className="mt-8 rounded-[24px] border border-white/10 bg-white/5 p-4">
+              <div className="mt-8 rounded-[24px] border border-white/10 bg-white/5 p-4 xl:mt-5 xl:rounded-[18px] xl:p-3 2xl:mt-8 2xl:rounded-[24px] 2xl:p-4">
                 <p className="text-xs uppercase tracking-[0.2em] text-white/45">Acceso</p>
                 <p className="mt-2 text-sm font-semibold text-white">Administrador de plataforma</p>
               </div>
             )}
 
-            <div className="mt-6 shrink-0 rounded-[14px] bg-white px-7 py-5 text-[#1F1F21]">
-              <p className="text-sm font-medium">{userName}</p>
-              <button onClick={logout} className="mt-1 text-sm font-extrabold uppercase text-brand-orange hover:text-[#D64213]">
+            <div className="mt-6 shrink-0 rounded-[14px] bg-white px-7 py-5 text-[#1F1F21] xl:mt-4 xl:px-5 xl:py-3 2xl:mt-6 2xl:px-7 2xl:py-5">
+              <p className="text-sm font-medium xl:text-xs 2xl:text-sm">{userName}</p>
+              <button onClick={logout} className="mt-1 text-sm font-extrabold uppercase text-brand-orange hover:text-[#D64213] xl:text-xs 2xl:text-sm">
                 Cerrar sesion
               </button>
               {feedback ? <StatusAlert message={feedback} /> : null}
@@ -144,7 +144,7 @@ const configurationItems: NavigationItem["children"] = [{ href: "/configuracion/
           </div>
         </aside>
 
-        <main className="h-screen min-w-0 overflow-y-auto px-4 py-4 sm:px-5 sm:py-6 md:px-8 xl:px-20 xl:py-28">
+        <main className="h-screen min-w-0 overflow-y-auto px-4 py-4 sm:px-5 sm:py-6 md:px-8 xl:px-8 xl:py-8 2xl:px-20 2xl:py-28">
           <div className="mb-5 rounded-[26px] border border-white/10 bg-[#1F1F21] p-4 text-white shadow-[0_18px_40px_rgba(0,0,0,0.18)] xl:hidden">
             <div className="flex items-center gap-3">
               <RestaurantAvatar image={workspaceImage} name={workspaceName} size="md" />
@@ -175,12 +175,12 @@ const configurationItems: NavigationItem["children"] = [{ href: "/configuracion/
             </nav>
           </div>
 
-          <div className="min-h-[70vh] rounded-[28px] border border-white/70 bg-white p-4 shadow-[0_32px_70px_rgba(0,0,0,0.18)] sm:p-5 md:p-8 xl:rounded-[40px]">
+          <div className="min-h-[70vh] rounded-[28px] border border-white/70 bg-white p-4 shadow-[0_32px_70px_rgba(0,0,0,0.18)] sm:p-5 md:p-8 xl:rounded-[32px] xl:p-6 2xl:rounded-[40px] 2xl:p-8">
             {hideIntro ? null : (
-              <div className="grid gap-4 border-b border-brand-line pb-6 md:pb-7 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+              <div className="grid gap-4 border-b border-brand-line pb-6 md:pb-7 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-[0.42em] text-brand-orange md:text-xs md:tracking-[0.5em]">{workspaceLabel}</p>
-                  <h1 className="mt-3 text-4xl font-extrabold tracking-[-0.06em] text-brand-ink md:mt-4 md:text-6xl">{title}</h1>
+                  <h1 className="mt-3 text-4xl font-extrabold tracking-[-0.06em] text-brand-ink md:mt-4 md:text-5xl 2xl:text-6xl">{title}</h1>
                 </div>
                 <PageInfoTooltip description={description} />
               </div>
