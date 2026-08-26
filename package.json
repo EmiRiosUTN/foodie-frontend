@@ -8,6 +8,7 @@
     "start": "next start -p 3000"
   },
   "dependencies": {
+    "@zxing/browser": "^0.2.1",
     "axios": "^1.16.1",
     "date-fns": "^4.2.1",
     "lucide-react": "^1.16.0",
