@@ -36,8 +36,9 @@ export function useChatTagService() {
   }, []);
 
   const updateTag = useCallback(async (tagName: string, color: string) => {
-    await chatApi.put(`/tags/${encodeURIComponent(tagName)}/color`, { color });
-    setTags((current) => current.map((tag) => (tag.name === tagName ? { ...tag, color } : tag)));
+    const normalizedTagName = tagName.trim().toLowerCase();
+    await chatApi.put(`/tags/${encodeURIComponent(normalizedTagName)}/color`, { color });
+    setTags((current) => current.map((tag) => (tag.name.trim().toLowerCase() === normalizedTagName ? { ...tag, color } : tag)));
   }, []);
 
   const deleteTag = useCallback(async (tagName: string) => {
@@ -63,7 +64,10 @@ export function useChatTagService() {
     return response.data.tags as string[];
   }, []);
 
-  const getTag = useCallback((tagName: string) => tags.find((tag) => tag.name === tagName.toLowerCase()), [tags]);
+  const getTag = useCallback((tagName: string) => {
+    const normalizedTagName = tagName.trim().toLowerCase();
+    return tags.find((tag) => tag.name.trim().toLowerCase() === normalizedTagName);
+  }, [tags]);
 
   return {
     tags,
