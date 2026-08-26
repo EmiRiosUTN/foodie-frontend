@@ -74,7 +74,7 @@ export function ChatTagManagerModal({
       await onUpdateTagColor(tagName, editColor);
       setEditingTag(null);
     } catch (err: any) {
-      setError(err.message || "No se pudo actualizar el color");
+      setError(`No se pudo guardar el color de la tag: ${err.message || "error inesperado"}`);
     } finally {
       setLoading(false);
     }
@@ -109,6 +109,8 @@ export function ChatTagManagerModal({
         }
       >
         <div className="space-y-6">
+          {error ? <p className="rounded-2xl border border-[#F0C7B2] bg-[#FFF1EA] px-4 py-3 text-sm text-[#B65221]">{error}</p> : null}
+
           {!readOnly ? (
             <div className="rounded-[24px] border border-brand-line bg-[#FCFAF7] p-4">
               <p className="text-sm font-semibold text-brand-ink">Crear nueva etiqueta</p>
@@ -139,7 +141,6 @@ export function ChatTagManagerModal({
                   Crear
                 </button>
               </div>
-              {error ? <p className="mt-3 text-sm text-[#B65221]">{error}</p> : null}
             </div>
           ) : null}
 
