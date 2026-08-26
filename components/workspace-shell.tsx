@@ -16,6 +16,7 @@ const restaurantNavigationItems = [
   { href: "/reservas", label: "Reservas" },
   { href: "/clientes", label: "Clientes" }
 ];
+const receptionNavigationItems = restaurantNavigationItems.filter((item) => ["/panel", "/chat", "/salon", "/reservas"].includes(item.href));
 
 const platformNavigationItems = [
   { href: "/admin", label: "Restaurantes" },
@@ -82,8 +83,9 @@ export function WorkspaceShell({
   const { bootstrap, chatSession, currentUser, feedback, userName, logout, selectedBranchId } = useWorkspace();
 
   const branch = bootstrap?.branches.find((item) => item.id === selectedBranchId);
+  const isReception = currentUser?.scope === "restaurant" && currentUser.role === "host";
   const chatNavigationItems =
-    currentUser?.scope === "restaurant"
+    currentUser?.scope === "restaurant" && !isReception
       ? getEnabledChatModules(chatSession.user).map((module) => ({
           href: module.href,
           label: module.label
@@ -93,8 +95,9 @@ const configurationItems: NavigationItem["children"] = [{ href: "/configuracion/
   const restaurantBaseNavigationItems: NavigationItem[] =
     currentUser?.role === "restaurant_owner"
       ? [...restaurantNavigationItems, { href: "/configuracion/personalizar", label: "Configuración", children: configurationItems }, { href: "/usuarios", label: "Usuarios" }]
-      : restaurantNavigationItems;
-  const navigationItems: NavigationItem[] = currentUser?.scope === "platform" ? platformNavigationItems : [...restaurantBaseNavigationItems, ...chatNavigationItems];
+      : isReception ? receptionNavigationItems : restaurantNavigationItems;
+  const giftCardNavigationItems: NavigationItem[] = currentUser?.scope === "restaurant" && currentUser.role === "restaurant_owner" ? [{ href: "/gift-cards", label: "Gift Cards" }] : [];
+  const navigationItems: NavigationItem[] = currentUser?.scope === "platform" ? platformNavigationItems : [...restaurantBaseNavigationItems, ...giftCardNavigationItems, ...chatNavigationItems];
   const workspaceLabel = currentUser?.scope === "platform" ? "Administracion" : "Operacion";
   const workspaceName = currentUser?.scope === "platform" ? "Foodie AI" : bootstrap?.name || "Restaurante";
   const workspaceImage = currentUser?.scope === "restaurant" ? bootstrap?.profileImageUrl : "";

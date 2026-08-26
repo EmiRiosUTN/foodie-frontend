@@ -326,6 +326,15 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!token || !currentUser) return;
 
+    if (currentUser.scope === "restaurant" && currentUser.role === "host") {
+      const receptionPaths = ["/panel", "/chat", "/salon", "/reservas"];
+      const hasReceptionAccess = receptionPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+      if (!hasReceptionAccess) {
+        router.replace("/panel");
+        return;
+      }
+    }
+
     const load = async () => {
       try {
         if (currentUser.scope === "platform") {
