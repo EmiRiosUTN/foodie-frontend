@@ -591,7 +591,7 @@ export function ChatDashboard() {
                               name={tagName}
                               color={tag?.color || "#6B7280"}
                               size="sm"
-                              onRemove={user?.role === "advisor" ? undefined : () => void handleRemoveTag(activeChat.chatId, tagName)}
+                              onRemove={() => void handleRemoveTag(activeChat.chatId, tagName)}
                             />
                           );
                         })}
@@ -607,7 +607,7 @@ export function ChatDashboard() {
                         onTagAdd={(tagName) => void handleAddTag(activeChat.chatId, tagName)}
                           onTagRemove={(tagName) => void handleRemoveTag(activeChat.chatId, tagName)}
                           onCreateTag={() => setIsTagManagerOpen(true)}
-                          disabled={user?.role === "advisor"}
+                          disabled={false}
                         />
                       </div>
 
@@ -856,7 +856,7 @@ export function ChatDashboard() {
         open={isTagManagerOpen}
         onClose={() => setIsTagManagerOpen(false)}
         tags={tagService.tags}
-        readOnly={user?.role === "advisor"}
+        readOnly={false}
         onCreateTag={async (name, color) => {
           await tagService.createTag(name, color);
           toast.success("Tag creada", { description: `Se creo "${name}"` });
