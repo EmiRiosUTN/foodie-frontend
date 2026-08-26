@@ -335,6 +335,14 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    if (currentUser.scope === "restaurant" && currentUser.role === "events") {
+      const hasEventsAccess = pathname === "/chat" || pathname.startsWith("/chat/");
+      if (!hasEventsAccess) {
+        router.replace("/chat");
+        return;
+      }
+    }
+
     const load = async () => {
       try {
         if (currentUser.scope === "platform") {

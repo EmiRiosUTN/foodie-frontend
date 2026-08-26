@@ -17,6 +17,7 @@ const restaurantNavigationItems = [
   { href: "/clientes", label: "Clientes" }
 ];
 const receptionNavigationItems = restaurantNavigationItems.filter((item) => ["/panel", "/chat", "/salon", "/reservas"].includes(item.href));
+const eventsNavigationItems = restaurantNavigationItems.filter((item) => item.href === "/chat");
 
 const platformNavigationItems = [
   { href: "/admin", label: "Restaurantes" },
@@ -84,6 +85,7 @@ export function WorkspaceShell({
 
   const branch = bootstrap?.branches.find((item) => item.id === selectedBranchId);
   const isReception = currentUser?.scope === "restaurant" && currentUser.role === "host";
+  const isEvents = currentUser?.scope === "restaurant" && currentUser.role === "events";
   const chatNavigationItems =
     currentUser?.scope === "restaurant" && !isReception
       ? getEnabledChatModules(chatSession.user).map((module) => ({
@@ -95,7 +97,7 @@ const configurationItems: NavigationItem["children"] = [{ href: "/configuracion/
   const restaurantBaseNavigationItems: NavigationItem[] =
     currentUser?.role === "restaurant_owner"
       ? [...restaurantNavigationItems, { href: "/configuracion/personalizar", label: "Configuración", children: configurationItems }, { href: "/usuarios", label: "Usuarios" }]
-      : isReception ? receptionNavigationItems : restaurantNavigationItems;
+      : isEvents ? eventsNavigationItems : isReception ? receptionNavigationItems : restaurantNavigationItems;
   const giftCardNavigationItems: NavigationItem[] = currentUser?.scope === "restaurant" && currentUser.role === "restaurant_owner" ? [{ href: "/gift-cards", label: "Gift Cards" }] : [];
   const navigationItems: NavigationItem[] = currentUser?.scope === "platform" ? platformNavigationItems : [...restaurantBaseNavigationItems, ...giftCardNavigationItems, ...chatNavigationItems];
   const workspaceLabel = currentUser?.scope === "platform" ? "Administracion" : "Operacion";
