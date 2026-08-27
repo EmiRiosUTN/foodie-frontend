@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, LockKeyhole, LockOpen } from "lucide-react";
 import { AppModal } from "./app-modal";
 import { ConfirmDialog } from "./confirm-dialog";
 import { FoodieSelect } from "./foodie-select";
@@ -1259,7 +1260,7 @@ export function SalonPage() {
                           {room.isOutdoor ? "Exterior" : "Interior"}
                         </span>
                       <span className="text-xs font-semibold text-brand-orange">Prioridad {room.bookingPriority}</span>
-                      {block ? <span className="text-xs font-semibold text-red-600">🔒 Cerrado en este turno</span> : null}
+                      {block ? <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-600"><LockKeyhole className="h-3.5 w-3.5" />Cerrado en este turno</span> : null}
                       </div>
                     </div>
 
@@ -1299,7 +1300,7 @@ export function SalonPage() {
                       onClick={() => void toggleRoomBlock(room.id, Boolean(block))}
                       className={`rounded-full border px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${block ? "border-emerald-200 text-emerald-700 hover:bg-emerald-50" : "border-red-200 text-red-700 hover:bg-red-50"}`}
                     >
-                      {changingBlockRoomId === room.id ? "Guardando..." : block ? "🔓 Abrir salón" : "🔒 Bloquear"}
+                      {changingBlockRoomId === room.id ? "Guardando..." : block ? <><LockOpen className="h-4 w-4" />Abrir salón</> : <><LockKeyhole className="h-4 w-4" />Bloquear</>}
                     </button>
                     <div className="flex rounded-full border border-brand-line">
                       <button
@@ -1310,7 +1311,7 @@ export function SalonPage() {
                         onClick={() => void moveRoom(room.id, -1)}
                         className="px-3 py-3 text-sm font-bold text-brand-ink disabled:cursor-not-allowed disabled:opacity-30"
                       >
-                        ↑
+                        <ArrowUp className="h-4 w-4" />
                       </button>
                       <button
                         type="button"
@@ -1320,7 +1321,7 @@ export function SalonPage() {
                         onClick={() => void moveRoom(room.id, 1)}
                         className="border-l border-brand-line px-3 py-3 text-sm font-bold text-brand-ink disabled:cursor-not-allowed disabled:opacity-30"
                       >
-                        ↓
+                        <ArrowDown className="h-4 w-4" />
                       </button>
                     </div>
                     <button
