@@ -31,6 +31,7 @@ export type Room = {
   name: string;
   description?: string | null;
   isOutdoor: boolean;
+  bookingPriority: number;
   zones: Array<{ id: string; name: string; slug: string }>;
   tables: Array<{
     id: string;
@@ -60,6 +61,15 @@ export type Room = {
     } | null;
     zoneId?: string | null;
   }>;
+};
+
+export type RoomBookingBlock = {
+  id: string;
+  roomId: string;
+  serviceDate: string;
+  turn: "mediodia" | "noche";
+  reason?: string | null;
+  createdAt: string;
 };
 
 export type Branch = {

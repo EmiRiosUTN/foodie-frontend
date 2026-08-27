@@ -16,6 +16,7 @@ import type {
   RestaurantStaffUserDetail,
   RestaurantStaffUser,
   RestaurantUserRole,
+  RoomBookingBlock,
   RoomDetail,
   ServiceState,
   WorkspaceUser
@@ -56,6 +57,7 @@ type WorkspaceContextValue = {
   reservations: Reservation[];
   customers: Customer[];
   tableStates: ServiceState[];
+  roomBlocks: RoomBookingBlock[];
   reservationForm: CreateReservationForm;
   roomForm: { name: string; description: string; isOutdoor: boolean };
   chatSession: ChatSession;
@@ -70,6 +72,9 @@ type WorkspaceContextValue = {
   logout: () => void;
   createRoom: () => Promise<void>;
   updateRoom: (roomId: string, input: { name: string; description: string; isOutdoor: boolean }) => Promise<void>;
+  reorderRooms: (branchId: string, roomIds: string[]) => Promise<void>;
+  blockRoom: (roomId: string, reason?: string) => Promise<void>;
+  unblockRoom: (roomId: string) => Promise<void>;
   deleteRoom: (roomId: string) => Promise<void>;
   saveRoomLayout: (roomId: string, payload: unknown) => Promise<void>;
   createReservation: () => Promise<void>;
@@ -168,6 +173,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [tableStates, setTableStates] = useState<ServiceState[]>([]);
+  const [roomBlocks, setRoomBlocks] = useState<RoomBookingBlock[]>([]);
   const [reservationForm, setReservationForm] = useState<CreateReservationForm>(initialReservationForm);
   const [roomForm, setRoomForm] = useState({ name: "", description: "", isOutdoor: false });
   const [chatSession, setChatSession] = useState<ChatSession>({
@@ -284,6 +290,12 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     setTableStates(statesData);
   }
 
+  async function loadRoomBlocks() {
+    if (!selectedBranchId) return;
+    const blocks = await api<RoomBookingBlock[]>(`/restaurant/rooms/blocks?branchId=${selectedBranchId}&serviceDate=${selectedDate}&turn=${selectedTurn}`);
+    setRoomBlocks(blocks);
+  }
+
   async function loadRoomDetail() {
     if (!selectedRoomId) {
       setRoomDetail(null);
@@ -299,7 +311,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    await Promise.all([loadBootstrap(), loadOperationalData(), loadRoomDetail()]);
+    await Promise.all([loadBootstrap(), loadOperationalData(), loadRoomDetail(), loadRoomBlocks()]);
   }
 
   useEffect(() => {
@@ -365,6 +377,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!token || currentUser?.scope !== "restaurant" || !selectedBranchId) return;
     loadOperationalData().catch((error) => setFeedback(error.message));
+    loadRoomBlocks().catch((error) => setFeedback(error.message));
   }, [token, currentUser, selectedBranchId, selectedDate, selectedTurn]);
 
   useEffect(() => {
@@ -756,6 +769,44 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       throw error;
     }
   }
+
+  async function reorderRooms(branchId: string, roomIds: string[]) {
+    try {
+      await api("/restaurant/rooms/reorder", {
+        method: "PUT",
+        body: JSON.stringify({ branchId, roomIds })
+      });
+      await loadBootstrap();
+      setFeedback("Prioridad de salones actualizada");
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "No se pudo actualizar la prioridad de salones");
+      throw error;
+    }
+  }
+
+  async function blockRoom(roomId: string, reason?: string) {
+    try {
+      await api(`/restaurant/rooms/${roomId}/blocks`, { method: "POST", body: JSON.stringify({ serviceDate: selectedDate, turn: selectedTurn, reason: reason || undefined }) });
+      await loadRoomBlocks();
+      setFeedback("Salon bloqueado para reservas");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudo bloquear el salon";
+      setFeedback(message);
+      throw error;
+    }
+  }
+
+  async function unblockRoom(roomId: string) {
+    try {
+      await api(`/restaurant/rooms/${roomId}/blocks?serviceDate=${selectedDate}&turn=${selectedTurn}`, { method: "DELETE" });
+      await loadRoomBlocks();
+      setFeedback("Salon habilitado para reservas");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudo habilitar el salon";
+      setFeedback(message);
+      throw error;
+    }
+  }
   async function createPlatformRestaurant(input: {
     restaurantName: string;
     slug: string;
@@ -861,6 +912,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       reservations,
       customers,
       tableStates,
+      roomBlocks,
       reservationForm,
       roomForm,
       chatSession,
@@ -875,6 +927,9 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       logout,
       createRoom,
       updateRoom,
+      reorderRooms,
+      blockRoom,
+      unblockRoom,
       deleteRoom,
       saveRoomLayout,
       createReservation,

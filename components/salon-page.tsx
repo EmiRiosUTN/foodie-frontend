@@ -357,12 +357,20 @@ export function SalonPage() {
   const {
     bootstrap,
     selectedBranchId,
+    selectedDate,
+    selectedTurn,
     selectedRoomId,
     setSelectedRoomId,
     setSelectedBranchId,
+    setSelectedDate,
+    setSelectedTurn,
     roomDetail,
     createRoom,
     updateRoom,
+    reorderRooms,
+    roomBlocks,
+    blockRoom,
+    unblockRoom,
     deleteRoom,
     saveRoomLayout,
     roomForm,
@@ -398,6 +406,8 @@ export function SalonPage() {
   });
   const [combinationKeys, setCombinationKeys] = useState<string[]>([]);
   const [isSavingLayout, setIsSavingLayout] = useState(false);
+  const [isReorderingRooms, setIsReorderingRooms] = useState(false);
+  const [changingBlockRoomId, setChangingBlockRoomId] = useState("");
   const dragMovedRef = useRef(false);
   const undoStackRef = useRef<DesignSnapshot[]>([]);
   const baselineSnapshotRef = useRef("");
@@ -616,6 +626,31 @@ export function SalonPage() {
     if (openedRoomId === roomId) setOpenedRoomId("");
     if (editingRoomId === roomId) resetRoomEditor();
     setRoomPendingDelete(null);
+  }
+
+  async function moveRoom(roomId: string, direction: -1 | 1) {
+    const roomIndex = rooms.findIndex((room) => room.id === roomId);
+    const nextIndex = roomIndex + direction;
+    if (roomIndex < 0 || nextIndex < 0 || nextIndex >= rooms.length || isReorderingRooms) return;
+    const nextRooms = [...rooms];
+    [nextRooms[roomIndex], nextRooms[nextIndex]] = [nextRooms[nextIndex], nextRooms[roomIndex]];
+    setIsReorderingRooms(true);
+    try {
+      await reorderRooms(selectedBranchId, nextRooms.map((room) => room.id));
+    } finally {
+      setIsReorderingRooms(false);
+    }
+  }
+
+  async function toggleRoomBlock(roomId: string, isBlocked: boolean) {
+    if (changingBlockRoomId) return;
+    setChangingBlockRoomId(roomId);
+    try {
+      if (isBlocked) await unblockRoom(roomId);
+      else await blockRoom(roomId);
+    } finally {
+      setChangingBlockRoomId("");
+    }
   }
 
   function openEditor(roomId: string) {
@@ -1177,6 +1212,17 @@ export function SalonPage() {
                   ))}
                 </FoodieSelect>
               </div>
+              <div>
+                <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-neutral-400">Fecha</label>
+                <input type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} className="foodie-input font-medium" />
+              </div>
+              <div>
+                <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-neutral-400">Turno</label>
+                <FoodieSelect value={selectedTurn} onChange={(event) => setSelectedTurn(event.target.value as "mediodia" | "noche")} className="min-w-[140px] font-medium">
+                  <option value="mediodia">Mediodía</option>
+                  <option value="noche">Noche</option>
+                </FoodieSelect>
+              </div>
             </div>
             <div className="text-right">
               <p className="text-sm font-semibold text-brand-ink">Salones creados</p>
@@ -1193,8 +1239,9 @@ export function SalonPage() {
           </div>
 
           <div className="mt-5 grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
-            {rooms.map((room) => {
+            {rooms.map((room, roomIndex) => {
               const metrics = getRoomMetrics(room);
+              const block = roomBlocks.find((item) => item.roomId === room.id);
 
               return (
                 <article
@@ -1207,9 +1254,13 @@ export function SalonPage() {
                         <p className="text-lg font-semibold text-brand-ink">{room.name}</p>
                         <p className="mt-2 text-sm text-neutral-500">{room.description || "Sin descripcion"}</p>
                       </div>
-                      <span className="rounded-full border border-brand-line px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-                        {room.isOutdoor ? "Exterior" : "Interior"}
-                      </span>
+                      <div className="flex flex-col items-end gap-2">
+                        <span className="rounded-full border border-brand-line px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                          {room.isOutdoor ? "Exterior" : "Interior"}
+                        </span>
+                      <span className="text-xs font-semibold text-brand-orange">Prioridad {room.bookingPriority}</span>
+                      {block ? <span className="text-xs font-semibold text-red-600">🔒 Cerrado en este turno</span> : null}
+                      </div>
                     </div>
 
                     <div className="mt-5 grid grid-cols-2 gap-3">
@@ -1242,6 +1293,36 @@ export function SalonPage() {
                   </button>
 
                   <div className="mt-5 flex gap-3">
+                    <button
+                      type="button"
+                      disabled={Boolean(changingBlockRoomId)}
+                      onClick={() => void toggleRoomBlock(room.id, Boolean(block))}
+                      className={`rounded-full border px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${block ? "border-emerald-200 text-emerald-700 hover:bg-emerald-50" : "border-red-200 text-red-700 hover:bg-red-50"}`}
+                    >
+                      {changingBlockRoomId === room.id ? "Guardando..." : block ? "🔓 Abrir salón" : "🔒 Bloquear"}
+                    </button>
+                    <div className="flex rounded-full border border-brand-line">
+                      <button
+                        type="button"
+                        aria-label={`Subir prioridad de ${room.name}`}
+                        title="Subir prioridad"
+                        disabled={roomIndex === 0 || isReorderingRooms}
+                        onClick={() => void moveRoom(room.id, -1)}
+                        className="px-3 py-3 text-sm font-bold text-brand-ink disabled:cursor-not-allowed disabled:opacity-30"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Bajar prioridad de ${room.name}`}
+                        title="Bajar prioridad"
+                        disabled={roomIndex === rooms.length - 1 || isReorderingRooms}
+                        onClick={() => void moveRoom(room.id, 1)}
+                        className="border-l border-brand-line px-3 py-3 text-sm font-bold text-brand-ink disabled:cursor-not-allowed disabled:opacity-30"
+                      >
+                        ↓
+                      </button>
+                    </div>
                     <button
                       type="button"
                       onClick={() => startEditRoom(room)}
