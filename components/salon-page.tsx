@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, LockKeyhole, LockOpen } from "lucide-react";
+import { ArrowDown, ArrowUp, LockKeyhole, LockOpen, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { AppModal } from "./app-modal";
 import { ConfirmDialog } from "./confirm-dialog";
 import { FoodieSelect } from "./foodie-select";
@@ -409,6 +409,7 @@ export function SalonPage() {
   const [isSavingLayout, setIsSavingLayout] = useState(false);
   const [isReorderingRooms, setIsReorderingRooms] = useState(false);
   const [changingBlockRoomId, setChangingBlockRoomId] = useState("");
+  const [openRoomMenuId, setOpenRoomMenuId] = useState("");
   const dragMovedRef = useRef(false);
   const undoStackRef = useRef<DesignSnapshot[]>([]);
   const baselineSnapshotRef = useRef("");
@@ -1227,7 +1228,7 @@ export function SalonPage() {
             </div>
             <div className="text-right">
               <p className="text-sm font-semibold text-brand-ink">Salones creados</p>
-              <p className="mt-1 text-sm text-neutral-500">{rooms.length} salones en esta branch.</p>
+              <p className="mt-1 text-sm text-neutral-500">{rooms.length} salones en esta sucursal.</p>
             </div>
 
             <button
@@ -1247,39 +1248,40 @@ export function SalonPage() {
               return (
                 <article
                   key={room.id}
-                  className="rounded-[26px] border border-brand-line bg-[#FCFAF7] p-5 transition hover:border-brand-orange hover:shadow-[0_18px_40px_rgba(31,31,33,0.07)]"
+                  className="rounded-[24px] border border-brand-line bg-[#FCFAF7] p-4 transition hover:border-brand-orange hover:shadow-[0_18px_40px_rgba(31,31,33,0.07)]"
                 >
                   <button type="button" onClick={() => openEditor(room.id)} className="block w-full text-left">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-lg font-semibold text-brand-ink">{room.name}</p>
-                        <p className="mt-2 text-sm text-neutral-500">{room.description || "Sin descripcion"}</p>
+                        <p className="text-base font-semibold text-brand-ink">{room.name}</p>
+                        <p className="mt-1 text-xs text-neutral-500">{room.description || "Sin descripcion"}</p>
                       </div>
-                      <div className="flex flex-col items-end gap-2">
-                        <span className="rounded-full border border-brand-line px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                      <div className="flex flex-col items-end gap-1.5">
+                        <span className="rounded-full border border-brand-line bg-white px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-neutral-500">
                           {room.isOutdoor ? "Exterior" : "Interior"}
                         </span>
-                      <span className="text-xs font-semibold text-brand-orange">Prioridad {room.bookingPriority}</span>
-                      {block ? <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-600"><LockKeyhole className="h-3.5 w-3.5" />Cerrado en este turno</span> : null}
+                        <span className="text-[11px] font-semibold text-brand-orange">Prioridad {room.bookingPriority}</span>
                       </div>
                     </div>
 
-                    <div className="mt-5 grid grid-cols-2 gap-3">
-                      <div className="rounded-[20px] border border-brand-line bg-white px-4 py-3">
+                    {block ? <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700"><LockKeyhole className="h-3.5 w-3.5" />Cerrado en este turno</div> : null}
+
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      <div className="rounded-2xl border border-brand-line bg-white px-3 py-2.5">
                         <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-400">Mesas</p>
-                        <p className="mt-2 text-xl font-semibold text-brand-ink">{room.tables.length}</p>
+                        <p className="mt-1 text-lg font-semibold text-brand-ink">{room.tables.length}</p>
                       </div>
-                      <div className="rounded-[20px] border border-brand-line bg-white px-4 py-3">
+                      <div className="rounded-2xl border border-brand-line bg-white px-3 py-2.5">
                         <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-400">Capacidad</p>
-                        <p className="mt-2 text-xl font-semibold text-brand-ink">{metrics.totalSeats} pax</p>
+                        <p className="mt-1 text-lg font-semibold text-brand-ink">{metrics.totalSeats} pax</p>
                       </div>
-                      <div className="rounded-[20px] border border-brand-line bg-white px-4 py-3">
+                      <div className="rounded-2xl border border-brand-line bg-white px-3 py-2.5">
                         <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-400">Reservables</p>
-                        <p className="mt-2 text-xl font-semibold text-brand-ink">{metrics.reservableCount}</p>
+                        <p className="mt-1 text-lg font-semibold text-brand-ink">{metrics.reservableCount}</p>
                       </div>
-                      <div className="rounded-[20px] border border-brand-line bg-white px-4 py-3">
+                      <div className="rounded-2xl border border-brand-line bg-white px-3 py-2.5">
                         <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-400">Zonas</p>
-                        <p className="mt-2 text-xl font-semibold text-brand-ink">{metrics.zoneCount}</p>
+                        <p className="mt-1 text-lg font-semibold text-brand-ink">{metrics.zoneCount}</p>
                       </div>
                     </div>
 
@@ -1293,14 +1295,13 @@ export function SalonPage() {
                     </div>
                   </button>
 
-                  <div className="mt-5 flex gap-3">
+                  <div className="mt-4 flex items-center gap-2">
                     <button
                       type="button"
-                      disabled={Boolean(changingBlockRoomId)}
-                      onClick={() => void toggleRoomBlock(room.id, Boolean(block))}
-                      className={`rounded-full border px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${block ? "border-emerald-200 text-emerald-700 hover:bg-emerald-50" : "border-red-200 text-red-700 hover:bg-red-50"}`}
+                      onClick={() => openEditor(room.id)}
+                      className="flex-1 rounded-full border border-brand-line bg-white px-4 py-2.5 text-sm font-semibold text-brand-ink transition hover:border-brand-orange hover:bg-[#FFF4ED] hover:text-brand-orange"
                     >
-                      {changingBlockRoomId === room.id ? "Guardando..." : block ? <><LockOpen className="h-4 w-4" />Abrir salón</> : <><LockKeyhole className="h-4 w-4" />Bloquear</>}
+                      Abrir plano
                     </button>
                     <div className="flex rounded-full border border-brand-line">
                       <button
@@ -1309,7 +1310,7 @@ export function SalonPage() {
                         title="Subir prioridad"
                         disabled={roomIndex === 0 || isReorderingRooms}
                         onClick={() => void moveRoom(room.id, -1)}
-                        className="px-3 py-3 text-sm font-bold text-brand-ink disabled:cursor-not-allowed disabled:opacity-30"
+                        className="inline-flex h-10 w-9 items-center justify-center px-2 text-brand-ink disabled:cursor-not-allowed disabled:opacity-30"
                       >
                         <ArrowUp className="h-4 w-4" />
                       </button>
@@ -1319,25 +1320,28 @@ export function SalonPage() {
                         title="Bajar prioridad"
                         disabled={roomIndex === rooms.length - 1 || isReorderingRooms}
                         onClick={() => void moveRoom(room.id, 1)}
-                        className="border-l border-brand-line px-3 py-3 text-sm font-bold text-brand-ink disabled:cursor-not-allowed disabled:opacity-30"
+                        className="inline-flex h-10 w-9 items-center justify-center border-l border-brand-line px-2 text-brand-ink disabled:cursor-not-allowed disabled:opacity-30"
                       >
                         <ArrowDown className="h-4 w-4" />
                       </button>
                     </div>
                     <button
                       type="button"
-                      onClick={() => startEditRoom(room)}
-                      className="flex-1 rounded-full border border-brand-line px-4 py-3 text-sm font-semibold text-brand-ink transition hover:border-brand-orange hover:bg-[#FFF4ED] hover:text-brand-orange hover:shadow-[0_10px_24px_rgba(244,81,30,0.14)] focus:outline-none focus:ring-4 focus:ring-brand-orange/20"
+                      title={block ? "Abrir salon para reservas" : "Bloquear salon para reservas"}
+                      aria-label={block ? `Abrir ${room.name} para reservas` : `Bloquear ${room.name} para reservas`}
+                      disabled={Boolean(changingBlockRoomId)}
+                      onClick={() => void toggleRoomBlock(room.id, Boolean(block))}
+                      className={`inline-flex h-10 w-10 items-center justify-center rounded-full border disabled:cursor-not-allowed disabled:opacity-60 ${block ? "border-emerald-200 text-emerald-700 hover:bg-emerald-50" : "border-red-200 text-red-700 hover:bg-red-50"}`}
                     >
-                      Editar
+                      {changingBlockRoomId === room.id ? <span className="text-xs">...</span> : block ? <LockOpen className="h-4 w-4" /> : <LockKeyhole className="h-4 w-4" />}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setRoomPendingDelete(room)}
-                      className="rounded-full border border-[#F0C7B2] px-4 py-3 text-sm font-semibold text-[#B65221] transition hover:border-[#D94B2B] hover:bg-[#FDE9E3] hover:text-[#A83418] hover:shadow-[0_10px_24px_rgba(217,75,43,0.16)] focus:outline-none focus:ring-4 focus:ring-[#D94B2B]/20"
-                    >
-                      Borrar
-                    </button>
+                    <div className="relative">
+                      <button type="button" aria-label={`Mas acciones para ${room.name}`} title="Mas acciones" onClick={() => setOpenRoomMenuId((current) => current === room.id ? "" : room.id)} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-brand-line bg-white text-brand-ink transition hover:border-brand-orange hover:text-brand-orange"><MoreHorizontal className="h-4 w-4" /></button>
+                      {openRoomMenuId === room.id ? <div className="absolute bottom-12 right-0 z-20 w-40 rounded-2xl border border-brand-line bg-white p-1.5 shadow-lg">
+                        <button type="button" onClick={() => { startEditRoom(room); setOpenRoomMenuId(""); }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-brand-ink hover:bg-[#FFF4ED]"><Pencil className="h-4 w-4" />Editar</button>
+                        <button type="button" onClick={() => { setRoomPendingDelete(room); setOpenRoomMenuId(""); }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-red-700 hover:bg-red-50"><Trash2 className="h-4 w-4" />Borrar</button>
+                      </div> : null}
+                    </div>
                   </div>
                 </article>
               );
