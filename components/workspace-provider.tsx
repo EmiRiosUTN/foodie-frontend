@@ -786,8 +786,9 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   async function blockRoom(roomId: string, reason?: string) {
     try {
-      await api(`/restaurant/rooms/${roomId}/blocks`, { method: "POST", body: JSON.stringify({ serviceDate: selectedDate, turn: selectedTurn, reason: reason || undefined }) });
-      await loadRoomBlocks();
+      const block = await api<RoomBookingBlock>(`/restaurant/rooms/${roomId}/blocks`, { method: "POST", body: JSON.stringify({ serviceDate: selectedDate, turn: selectedTurn, reason: reason || undefined }) });
+      setRoomBlocks((current) => [...current.filter((item) => item.roomId !== roomId), block]);
+      void loadRoomBlocks().catch(() => undefined);
       setFeedback("Salon bloqueado para reservas");
     } catch (error) {
       const message = error instanceof Error ? error.message : "No se pudo bloquear el salon";
@@ -799,7 +800,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   async function unblockRoom(roomId: string) {
     try {
       await api(`/restaurant/rooms/${roomId}/blocks?serviceDate=${selectedDate}&turn=${selectedTurn}`, { method: "DELETE" });
-      await loadRoomBlocks();
+      setRoomBlocks((current) => current.filter((item) => item.roomId !== roomId));
+      void loadRoomBlocks().catch(() => undefined);
       setFeedback("Salon habilitado para reservas");
     } catch (error) {
       const message = error instanceof Error ? error.message : "No se pudo habilitar el salon";
@@ -973,6 +975,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       reservations,
       customers,
       tableStates,
+      roomBlocks,
       reservationForm,
       roomForm,
       chatSession,
