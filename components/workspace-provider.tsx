@@ -120,6 +120,7 @@ type WorkspaceContextValue = {
   loadRestaurantActivity: (filters?: { restaurantUserId?: string; limit?: number }) => Promise<RestaurantActivityLog[]>;
   loadRestaurantChatActivity: (filters?: { restaurantUserId?: string; limit?: number }) => Promise<ChatActivityLog[]>;
   loadPlatformRestaurantDetail: (restaurantId: string) => Promise<PlatformRestaurantDetail>;
+  updatePlatformRestaurant: (restaurantId: string, input: { name?: string; slug?: string; profileImageUrl?: string | null; isActive?: boolean }) => Promise<void>;
   rotatePlatformRestaurantToken: (restaurantId: string) => Promise<{ rawApiToken: string }>;
   uploadPlatformRestaurantProfileImage: (file: File) => Promise<string>;
   configurePlatformRestaurantChat: (restaurantId: string, input: { email: string; password: string }) => Promise<void>;
@@ -735,6 +736,21 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     return api<PlatformRestaurantDetail>(`/platform/restaurants/${restaurantId}`);
   }
 
+  async function updatePlatformRestaurant(
+    restaurantId: string,
+    input: { name?: string; slug?: string; profileImageUrl?: string | null; isActive?: boolean }
+  ) {
+    try {
+      await api(`/platform/restaurants/${restaurantId}`, { method: "PATCH", body: JSON.stringify(input) });
+      await loadPlatformRestaurants();
+      setFeedback("Restaurante actualizado");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudo actualizar el restaurante";
+      setFeedback(message);
+      throw error;
+    }
+  }
+
   async function uploadPlatformRestaurantProfileImage(file: File) {
     const formData = new FormData();
     formData.set("file", file);
@@ -950,6 +966,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       loadRestaurantActivity,
       loadRestaurantChatActivity,
       loadPlatformRestaurantDetail,
+      updatePlatformRestaurant,
       uploadPlatformRestaurantProfileImage,
       rotatePlatformRestaurantToken,
       configurePlatformRestaurantChat,
