@@ -21,6 +21,8 @@ type EditRestaurantFormState = {
   name: string;
   slug: string;
   profileImageUrl: string;
+  branchName: string;
+  branchId: string;
   isActive: boolean;
 };
 
@@ -36,14 +38,14 @@ const initialRestaurantForm: RestaurantFormState = {
 };
 
 export function AdminRestaurantsPage() {
-  const { currentUser, platformRestaurants, createPlatformRestaurant, updatePlatformRestaurant, uploadPlatformRestaurantProfileImage, rotatePlatformRestaurantToken } = useWorkspace();
+  const { currentUser, platformRestaurants, createPlatformRestaurant, updatePlatformRestaurant, updatePlatformBranch, uploadPlatformRestaurantProfileImage, rotatePlatformRestaurantToken } = useWorkspace();
   const [restaurantModalOpen, setRestaurantModalOpen] = useState(false);
   const [restaurantForm, setRestaurantForm] = useState<RestaurantFormState>(initialRestaurantForm);
   const [profileUploading, setProfileUploading] = useState(false);
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [generatingApiKey, setGeneratingApiKey] = useState("");
   const [editingRestaurant, setEditingRestaurant] = useState<(typeof platformRestaurants)[number] | null>(null);
-  const [editForm, setEditForm] = useState<EditRestaurantFormState>({ name: "", slug: "", profileImageUrl: "", isActive: true });
+  const [editForm, setEditForm] = useState<EditRestaurantFormState>({ name: "", slug: "", profileImageUrl: "", branchName: "", branchId: "", isActive: true });
   useEffect(() => {
     const persisted = Object.fromEntries(platformRestaurants.flatMap((restaurant) => {
       const key = restaurant.integrationTokens.find((token) => token.isActive)?.apiKey;
@@ -103,12 +105,19 @@ export function AdminRestaurantsPage() {
 
   function openEditRestaurant(restaurant: (typeof platformRestaurants)[number]) {
     setEditingRestaurant(restaurant);
-    setEditForm({ name: restaurant.name, slug: restaurant.slug, profileImageUrl: restaurant.profileImageUrl || "", isActive: restaurant.isActive });
+    const branch = restaurant.branches[0];
+    setEditForm({ name: restaurant.name, slug: restaurant.slug, profileImageUrl: restaurant.profileImageUrl || "", branchName: branch?.name || "", branchId: branch?.id || "", isActive: restaurant.isActive });
   }
 
   async function submitEditRestaurant() {
     if (!editingRestaurant) return;
     await updatePlatformRestaurant(editingRestaurant.id, editForm);
+    if (editForm.branchId && editForm.branchName.trim()) {
+      const originalBranchName = editingRestaurant.branches.find((branch) => branch.id === editForm.branchId)?.name;
+      if (editForm.branchName.trim() !== originalBranchName) {
+        await updatePlatformBranch(editingRestaurant.id, editForm.branchId, { name: editForm.branchName });
+      }
+    }
     setEditingRestaurant(null);
   }
 
@@ -392,6 +401,10 @@ export function AdminRestaurantsPage() {
           <label className="block space-y-2 text-sm text-brand-ink">
             <span className="font-medium">Nombre del restaurante</span>
             <input value={editForm.name} onChange={(event) => setEditForm((current) => ({ ...current, name: event.target.value }))} className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange" />
+          </label>
+          <label className="block space-y-2 text-sm text-brand-ink">
+            <span className="font-medium">Nombre de la sede</span>
+            <input value={editForm.branchName} onChange={(event) => setEditForm((current) => ({ ...current, branchName: event.target.value }))} className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange" />
           </label>
           <label className="block space-y-2 text-sm text-brand-ink">
             <span className="font-medium">Slug público</span>
