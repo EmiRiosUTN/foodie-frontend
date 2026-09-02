@@ -62,7 +62,7 @@ function RestaurantAvatar({ image, name, size = "lg" }: { image?: string | null;
       {image ? (
         <img src={image} alt={name} className="h-full w-full object-cover" />
       ) : (
-        <Image src="/brand/mark.png" alt="Foodie AI" width={imageSize} height={imageSize} className="h-10 w-10 object-contain" priority />
+        <Image src="/brand/mark.png" alt="Foodie AI" width={imageSize} height={imageSize} className="h-10 w-10 object-contain brightness-0 invert" priority />
       )}
     </div>
   );
