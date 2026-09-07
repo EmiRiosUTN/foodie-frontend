@@ -107,10 +107,10 @@ function DailyReservationsPrint() {
       </section>
       {sortedReservations.length ? (
         <table className="print-table">
-          <thead><tr><th>Hora</th><th>Cliente</th><th>Personas</th><th>Telefono</th><th>Salon / mesa</th><th>Estado</th><th>Observaciones y preferencias</th></tr></thead>
+          <thead><tr><th>Hora</th><th>Código</th><th>Cliente</th><th>Personas</th><th>Telefono</th><th>Salon / mesa</th><th>Estado</th><th>Observaciones y preferencias</th></tr></thead>
           <tbody>{sortedReservations.map((reservation) => (
             <tr key={reservation.id}>
-              <td>{reservation.serviceTime}</td><td><strong>{reservation.fullName}</strong></td><td>{reservation.partySize}</td><td>{reservation.phone || "—"}</td>
+              <td>{reservation.serviceTime}</td><td><strong>{reservation.code}</strong></td><td><strong>{reservation.fullName}</strong></td><td>{reservation.partySize}</td><td>{reservation.phone || "—"}</td>
               <td>{reservation.room?.name || "—"}{reservation.tables.length ? ` — ${reservation.tables.map((item) => item.table.label).join(", ")}` : ""}</td>
               <td>{statusLabel(reservation.status)}</td>
               <td>{[reservation.notes, reservation.preferredZone ? `Ubicacion: ${reservation.preferredZone}` : null].filter(Boolean).join(" · ") || "—"}</td>
