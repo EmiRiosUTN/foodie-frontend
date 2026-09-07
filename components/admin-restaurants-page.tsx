@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, Copy, Mail, Pencil, Plus, UserCog, Users } from "lucide-react";
+import { Building2, Copy, Mail, MessageCircle, Pencil, Plus, UserCog, Users } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AppModal } from "./app-modal";
 import { WorkspaceShell } from "./workspace-shell";
@@ -26,6 +26,11 @@ type EditRestaurantFormState = {
   isActive: boolean;
 };
 
+type ChatCredentialsFormState = {
+  email: string;
+  password: string;
+};
+
 const initialRestaurantForm: RestaurantFormState = {
   restaurantName: "",
   slug: "",
@@ -38,7 +43,7 @@ const initialRestaurantForm: RestaurantFormState = {
 };
 
 export function AdminRestaurantsPage() {
-  const { currentUser, platformRestaurants, createPlatformRestaurant, updatePlatformRestaurant, updatePlatformBranch, uploadPlatformRestaurantProfileImage, rotatePlatformRestaurantToken } = useWorkspace();
+  const { currentUser, platformRestaurants, createPlatformRestaurant, updatePlatformRestaurant, updatePlatformBranch, uploadPlatformRestaurantProfileImage, rotatePlatformRestaurantToken, configurePlatformRestaurantChat } = useWorkspace();
   const [restaurantModalOpen, setRestaurantModalOpen] = useState(false);
   const [restaurantForm, setRestaurantForm] = useState<RestaurantFormState>(initialRestaurantForm);
   const [profileUploading, setProfileUploading] = useState(false);
@@ -46,6 +51,9 @@ export function AdminRestaurantsPage() {
   const [generatingApiKey, setGeneratingApiKey] = useState("");
   const [editingRestaurant, setEditingRestaurant] = useState<(typeof platformRestaurants)[number] | null>(null);
   const [editForm, setEditForm] = useState<EditRestaurantFormState>({ name: "", slug: "", profileImageUrl: "", branchName: "", branchId: "", isActive: true });
+  const [chatRestaurant, setChatRestaurant] = useState<(typeof platformRestaurants)[number] | null>(null);
+  const [chatCredentials, setChatCredentials] = useState<ChatCredentialsFormState>({ email: "", password: "" });
+  const [savingChatCredentials, setSavingChatCredentials] = useState(false);
   useEffect(() => {
     const persisted = Object.fromEntries(platformRestaurants.flatMap((restaurant) => {
       const key = restaurant.integrationTokens.find((token) => token.isActive)?.apiKey;
@@ -128,6 +136,29 @@ export function AdminRestaurantsPage() {
       setApiKeys((current) => ({ ...current, [restaurantId]: result.rawApiToken }));
     } finally {
       setGeneratingApiKey("");
+    }
+  }
+
+  function openChatConfiguration(restaurant: (typeof platformRestaurants)[number]) {
+    setChatRestaurant(restaurant);
+    setChatCredentials({ email: "", password: "" });
+  }
+
+  function closeChatConfiguration() {
+    if (savingChatCredentials) return;
+    setChatRestaurant(null);
+    setChatCredentials({ email: "", password: "" });
+  }
+
+  async function saveChatConfiguration() {
+    if (!chatRestaurant) return;
+    setSavingChatCredentials(true);
+    try {
+      await configurePlatformRestaurantChat(chatRestaurant.id, chatCredentials);
+      setChatRestaurant(null);
+      setChatCredentials({ email: "", password: "" });
+    } finally {
+      setSavingChatCredentials(false);
     }
   }
 
@@ -234,6 +265,20 @@ export function AdminRestaurantsPage() {
                   >
                     <Copy className="h-3.5 w-3.5" />
                     Copiar IDs
+                  </button>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-brand-line bg-white p-3">
+                  <div>
+                    <p className="text-xs font-semibold text-brand-ink">Cuenta de Chat Pupia</p>
+                    <p className="mt-1 text-xs text-neutral-500">Define qué cuenta de Pupia abre Foodie para mostrar sus conversaciones.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => openChatConfiguration(restaurant)}
+                    className="inline-flex items-center gap-2 rounded-full border border-brand-line bg-white px-3 py-2 text-xs font-semibold text-brand-ink transition hover:border-brand-orange hover:text-brand-orange"
+                  >
+                    <MessageCircle className="h-3.5 w-3.5" />
+                    Configurar Chat
                   </button>
                 </div>
                 <div className="mt-3 rounded-[18px] border border-brand-line bg-white p-3">
@@ -414,6 +459,32 @@ export function AdminRestaurantsPage() {
             <input type="checkbox" checked={editForm.isActive} onChange={(event) => setEditForm((current) => ({ ...current, isActive: event.target.checked }))} className="h-4 w-4 accent-brand-orange" />
             Restaurante activo
           </label>
+        </div>
+      </AppModal>
+
+      <AppModal
+        open={Boolean(chatRestaurant)}
+        onClose={closeChatConfiguration}
+        title="Conectar Chat de Pupia"
+        description={`Foodie iniciará sesión en Pupia con esta cuenta para ${chatRestaurant?.name || "el restaurante"}. Usá el usuario que muestra el historial nuevo.`}
+        footer={
+          <>
+            <button type="button" disabled={savingChatCredentials} onClick={closeChatConfiguration} className="flex-1 rounded-full border border-brand-line px-4 py-3 text-sm font-medium text-brand-ink disabled:opacity-60">Cancelar</button>
+            <button type="button" disabled={savingChatCredentials || !chatCredentials.email || chatCredentials.password.length < 4} onClick={() => void saveChatConfiguration()} className="flex-1 rounded-full bg-brand-orange px-4 py-3 text-sm font-medium text-white disabled:opacity-60">{savingChatCredentials ? "Guardando..." : "Guardar conexión"}</button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="rounded-2xl bg-white/10 px-4 py-3 text-sm leading-6 text-white/85">No copies el Client ID, WABA ni token de Pupia aquí. Solo ingresá el email y contraseña del perfil de Pupia que ya ve los chats nuevos.</p>
+          <label className="block space-y-2 text-sm text-brand-ink">
+            <span className="font-medium">Email de Pupia</span>
+            <input type="email" autoComplete="username" value={chatCredentials.email} onChange={(event) => setChatCredentials((current) => ({ ...current, email: event.target.value }))} placeholder="usuario@correo.com" className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange" />
+          </label>
+          <label className="block space-y-2 text-sm text-brand-ink">
+            <span className="font-medium">Contraseña de Pupia</span>
+            <input type="password" autoComplete="current-password" value={chatCredentials.password} onChange={(event) => setChatCredentials((current) => ({ ...current, password: event.target.value }))} placeholder="Contraseña actual" className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange" />
+          </label>
+          <p className="text-xs leading-5 text-white/70">La contraseña se guarda cifrada y no vuelve a mostrarse. Después de guardar, cerrá e iniciá sesión en Foodie para renovar la sesión de Chat.</p>
         </div>
       </AppModal>
     </WorkspaceShell>
