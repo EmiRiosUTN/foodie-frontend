@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FoodieSelect } from "./foodie-select";
+import { ReservationTableReassignModal } from "./reservation-table-reassign-modal";
 import { WorkspaceShell } from "./workspace-shell";
 import { useWorkspace } from "./workspace-provider";
 
@@ -123,6 +124,7 @@ export function PanelPage() {
   const [selectedTableId, setSelectedTableId] = useState("");
   const [openMenuTableId, setOpenMenuTableId] = useState("");
   const [detailReservationId, setDetailReservationId] = useState("");
+  const [reassignReservationId, setReassignReservationId] = useState("");
   const layoutWrapRef = useRef<HTMLDivElement>(null);
   const layoutScale = 1;
 
@@ -153,6 +155,9 @@ export function PanelPage() {
 
   const detailReservation = detailReservationId
     ? reservations.find((reservation) => reservation.id === detailReservationId) || null
+    : null;
+  const reassignReservation = reassignReservationId
+    ? reservations.find((reservation) => reservation.id === reassignReservationId) || null
     : null;
 
   return (
@@ -256,6 +261,7 @@ export function PanelPage() {
                   const state = tableStateMap.get(table.id);
                   const status = state?.status || "free";
                   const reservation = reservationByTableId.get(table.id) || null;
+                  const canReassign = Boolean(reservation && ["pending", "confirmed"].includes(reservation.status) && !isSelectedRoomBlocked);
 
                   return (
                     <div
@@ -342,6 +348,19 @@ export function PanelPage() {
                             </button>
                             <button
                               type="button"
+                              disabled={!canReassign}
+                              onClick={() => {
+                                setOpenMenuTableId("");
+                                if (reservation) setReassignReservationId(reservation.id);
+                              }}
+                              className="flex h-8 w-8 items-center justify-center rounded-full border border-brand-orange text-sm font-bold text-brand-orange hover:bg-[#FFF4ED] disabled:cursor-not-allowed disabled:border-[#E5E7EB] disabled:text-[#BDBDBD]"
+                              aria-label="Cambiar mesa"
+                              title="Cambiar mesa"
+                            >
+                              ↔
+                            </button>
+                            <button
+                              type="button"
                               onClick={() => {
                                 setOpenMenuTableId("");
                                 if (reservation) {
@@ -370,6 +389,8 @@ export function PanelPage() {
           )}
         </div>
       </section>
+
+      <ReservationTableReassignModal reservation={reassignReservation} onClose={() => setReassignReservationId("")} />
 
       {detailReservation ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(31,31,33,0.42)] p-6">

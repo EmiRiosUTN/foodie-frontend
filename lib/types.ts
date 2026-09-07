@@ -271,6 +271,12 @@ export type Reservation = {
   tables: Array<{ table: { id: string; label: string; seats: number } }>;
 };
 
+export type ReservationTableOption = {
+  tableIds: string[];
+  tableLabels: string[];
+  seats: number;
+};
+
 export type Customer = {
   id: string;
   fullName: string;

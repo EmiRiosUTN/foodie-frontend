@@ -12,6 +12,7 @@ import type {
   PlatformRestaurantDetail,
   PlatformRestaurantSummary,
   Reservation,
+  ReservationTableOption,
   RestaurantActivityLog,
   RestaurantStaffUserDetail,
   RestaurantStaffUser,
@@ -84,6 +85,8 @@ type WorkspaceContextValue = {
   saveRoomLayout: (roomId: string, payload: unknown) => Promise<void>;
   createReservation: () => Promise<void>;
   moveReservation: (reservationId: string, action: "check-in" | "release") => Promise<void>;
+  loadReservationTableOptions: (reservationId: string) => Promise<ReservationTableOption[]>;
+  reassignReservationTables: (reservationId: string, tableIds: string[]) => Promise<void>;
   setTableState: (tableId: string, status: ServiceState["status"]) => Promise<void>;
   createCustomer: (input: {
     fullName: string;
@@ -742,6 +745,25 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     return api<PlatformRestaurantDetail>(`/platform/restaurants/${restaurantId}`);
   }
 
+  async function loadReservationTableOptions(reservationId: string) {
+    return api<ReservationTableOption[]>(`/restaurant/reservations/${reservationId}/table-options`);
+  }
+
+  async function reassignReservationTables(reservationId: string, tableIds: string[]) {
+    try {
+      await api(`/restaurant/reservations/${reservationId}/reassign-tables`, {
+        method: "POST",
+        body: JSON.stringify({ tableIds })
+      });
+      await loadOperationalData();
+      setFeedback("Mesa reasignada");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudo reasignar la mesa";
+      setFeedback(message);
+      throw new Error(message);
+    }
+  }
+
   async function updatePlatformRestaurant(
     restaurantId: string,
     input: { name?: string; slug?: string; profileImageUrl?: string | null; isActive?: boolean }
@@ -996,6 +1018,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       saveRoomLayout,
       createReservation,
       moveReservation,
+      loadReservationTableOptions,
+      reassignReservationTables,
       setTableState,
       createCustomer,
       updateCustomer,

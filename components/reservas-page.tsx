@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import type { Reservation } from "../lib/types";
 import { AppModal } from "./app-modal";
 import { FoodieSelect } from "./foodie-select";
+import { ReservationTableReassignModal } from "./reservation-table-reassign-modal";
 import { WorkspaceShell } from "./workspace-shell";
 import { useWorkspace } from "./workspace-provider";
 
@@ -46,6 +47,7 @@ export function ReservasPage() {
   } = useWorkspace();
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [reassignReservation, setReassignReservation] = useState<Reservation | null>(null);
   const [formError, setFormError] = useState("");
   const [activeView, setActiveView] = useState<"turno" | "historico">("turno");
   const [historyFilters, setHistoryFilters] = useState({
@@ -274,6 +276,15 @@ export function ReservasPage() {
                       >
                         Liberar
                       </button>
+                      {["pending", "confirmed"].includes(reservation.status) ? (
+                        <button
+                          type="button"
+                          onClick={() => setReassignReservation(reservation)}
+                          className="rounded-full border border-brand-orange px-3 py-2 text-xs font-medium text-brand-orange"
+                        >
+                          Cambiar mesa
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                 ))}
@@ -309,6 +320,15 @@ export function ReservasPage() {
                     >
                       Liberar
                     </button>
+                    {["pending", "confirmed"].includes(reservation.status) ? (
+                      <button
+                        type="button"
+                        onClick={() => setReassignReservation(reservation)}
+                        className="flex-1 rounded-full border border-brand-orange px-4 py-2.5 text-sm font-medium text-brand-orange"
+                      >
+                        Cambiar mesa
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               ))}
@@ -447,6 +467,8 @@ export function ReservasPage() {
         </div>
       </section>
       ) : null}
+
+      <ReservationTableReassignModal reservation={reassignReservation} onClose={() => setReassignReservation(null)} />
 
       <AppModal
         open={createOpen}
