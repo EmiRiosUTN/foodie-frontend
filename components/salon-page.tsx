@@ -76,6 +76,7 @@ type PendingTableDraft = {
 
 type TableModalState = {
   label: string;
+  zoneId: string;
   seats: string;
   minPartySize: string;
   maxPartySize: string;
@@ -391,6 +392,8 @@ export function SalonPage() {
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const canvasSurfaceRef = useRef<HTMLDivElement | null>(null);
   const [editorItems, setEditorItems] = useState<EditorItem[]>([]);
+  const [editorZones, setEditorZones] = useState<Room["zones"]>([]);
+  const [newZoneName, setNewZoneName] = useState("");
   const [selectedItemId, setSelectedItemId] = useState("");
   const [zoom, setZoom] = useState(1);
   const [openedRoomId, setOpenedRoomId] = useState("");
@@ -404,6 +407,7 @@ export function SalonPage() {
   const [editingTableItemId, setEditingTableItemId] = useState("");
   const [tableModal, setTableModal] = useState<TableModalState>({
     label: "",
+    zoneId: "",
     seats: "4",
     minPartySize: "1",
     maxPartySize: "4",
@@ -482,6 +486,7 @@ export function SalonPage() {
   useEffect(() => {
     if (!roomDetail || !storageKey) {
       setEditorItems([]);
+      setEditorZones([]);
       setCombinationKeys([]);
       setSelectedItemId("");
       resetHistory({ items: [], combinationKeys: [] });
@@ -491,6 +496,7 @@ export function SalonPage() {
     }
 
     const fallback = buildEditorItems(roomDetail);
+    setEditorZones(roomDetail.zones);
     const saved = window.localStorage.getItem(storageKey);
 
     if (!saved) {
@@ -757,6 +763,7 @@ export function SalonPage() {
     setEditingTableItemId(item.id);
     setTableModal({
       label: item.label,
+      zoneId: item.zoneId || "",
       seats: String(item.seats || 4),
       minPartySize: String(metadata.capacity?.minPartySize || 1),
       maxPartySize: String(metadata.capacity?.maxPartySize || item.seats || 4),
@@ -773,6 +780,7 @@ export function SalonPage() {
     setEditingTableItemId("");
     setTableModal({
       label: "",
+      zoneId: "",
       seats: "4",
       minPartySize: "1",
       maxPartySize: "4",
@@ -999,6 +1007,7 @@ export function SalonPage() {
             ? {
                 ...item,
                 label: tableModal.label.trim() || item.label,
+                zoneId: tableModal.zoneId || null,
                 seats,
                 isReservable: tableModal.isReservable,
                 isCombinable: tableModal.isCombinable,
@@ -1038,6 +1047,7 @@ export function SalonPage() {
         id: itemId,
         kind: pendingTableDraft.kind,
         label: tableModal.label.trim() || pendingTableDraft.label,
+        zoneId: tableModal.zoneId || null,
         x: pendingTableDraft.x,
         y: pendingTableDraft.y,
         width: pendingTableDraft.width,
@@ -1090,6 +1100,7 @@ export function SalonPage() {
       });
       setTableModal({
         label: "",
+        zoneId: "",
         seats: String(palette.seats || 4),
         minPartySize: "1",
         maxPartySize: String(palette.seats || 4),
@@ -1141,6 +1152,26 @@ export function SalonPage() {
     setHasUnsavedChanges(true);
   }
 
+  function addZone() {
+    const name = newZoneName.trim();
+    if (!name || editorZones.some((zone) => zone.name.toLowerCase() === name.toLowerCase())) return;
+    const slug = name
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || `zona-${Date.now()}`;
+    setEditorZones((current) => [...current, { id: `local-zone-${Date.now()}`, name, slug }]);
+    setNewZoneName("");
+    setHasUnsavedChanges(true);
+  }
+
+  function removeZone(zoneId: string) {
+    setEditorZones((current) => current.filter((zone) => zone.id !== zoneId));
+    setEditorItems((current) => current.map((item) => item.zoneId === zoneId ? { ...item, zoneId: null } : item));
+    setHasUnsavedChanges(true);
+  }
+
   async function saveDesignChanges() {
     if (!storageKey || !selectedRoomId || !roomDetail) return;
 
@@ -1167,7 +1198,7 @@ export function SalonPage() {
       .filter((item): item is { id: string; parentTableId: string; childTableId: string; combinedSeats: number } => Boolean(item));
 
     const payload = {
-      zones: roomDetail.zones,
+      zones: editorZones,
       items: fixedItems.map((item) => ({
         id: item.id,
         kind: item.kind,
@@ -1678,6 +1709,29 @@ export function SalonPage() {
 
             <aside className="border-t border-brand-line bg-[#FCFAF7] xl:border-l xl:border-t-0">
               <div className="border-b border-brand-line px-5 py-5">
+                <p className="text-sm font-semibold text-brand-ink">Zonas del salón</p>
+                <p className="mt-1 text-sm text-neutral-500">Creá zonas para que puedan elegirse en una reserva.</p>
+                <div className="mt-3 flex gap-2">
+                  <input
+                    value={newZoneName}
+                    onChange={(event) => setNewZoneName(event.target.value)}
+                    onKeyDown={(event) => { if (event.key === "Enter") addZone(); }}
+                    placeholder="Ej: Patio"
+                    className="min-w-0 flex-1 rounded-2xl border border-brand-line bg-white px-3 py-2.5 text-sm text-brand-ink outline-none focus:border-brand-orange"
+                  />
+                  <button type="button" onClick={addZone} disabled={!newZoneName.trim()} className="rounded-full bg-brand-orange px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">Agregar</button>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {editorZones.map((zone) => (
+                    <span key={zone.id} className="inline-flex items-center gap-2 rounded-full border border-brand-line bg-white px-3 py-1.5 text-xs font-medium text-brand-ink">
+                      {zone.name}
+                      <button type="button" onClick={() => removeZone(zone.id)} className="font-bold text-neutral-400 hover:text-red-600" aria-label={`Eliminar zona ${zone.name}`}>×</button>
+                    </span>
+                  ))}
+                  {!editorZones.length ? <span className="text-xs text-neutral-400">Todavía no hay zonas creadas.</span> : null}
+                </div>
+              </div>
+              <div className="border-b border-brand-line px-5 py-5">
                 <p className="text-sm font-semibold text-brand-ink">Paleta visual</p>
                 <p className="mt-1 text-sm text-neutral-500">Arrastra elementos desde aqui hacia el plano.</p>
               </div>
@@ -1933,6 +1987,14 @@ export function SalonPage() {
                   placeholder="Ej: M1"
                   className="w-full rounded-2xl border border-white/10 bg-white px-4 py-3 text-brand-ink outline-none placeholder:text-neutral-400 focus:border-brand-orange"
                 />
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-sm font-semibold text-white">Zona</span>
+                <FoodieSelect value={tableModal.zoneId} onChange={(event) => setTableModal((current) => ({ ...current, zoneId: event.target.value }))}>
+                  <option value="">Sin zona</option>
+                  {editorZones.map((zone) => <option key={zone.id} value={zone.id}>{zone.name}</option>)}
+                </FoodieSelect>
               </label>
 
               <label className="block space-y-2">
