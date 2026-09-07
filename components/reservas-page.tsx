@@ -37,7 +37,10 @@ export function ReservasPage() {
     setReservationForm,
     createReservation,
     moveReservation,
+    bootstrap,
     roomDetail,
+    selectedRoomId,
+    setSelectedRoomId,
     selectedDate,
     selectedTurn,
     setSelectedDate,
@@ -61,6 +64,7 @@ export function ReservasPage() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
   const zonePills = roomDetail?.zones || [];
+  const selectedBranch = bootstrap?.branches.find((branch) => branch.id === selectedBranchId);
 
   const sortedReservations = useMemo(
     () =>
@@ -553,6 +557,23 @@ export function ReservasPage() {
               onChange={(event) => setReservationForm((current) => ({ ...current, serviceTime: event.target.value }))}
               className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
             />
+          </label>
+          <label className="space-y-2 text-sm text-brand-ink md:col-span-2">
+            <span className="font-medium">Salón</span>
+            <FoodieSelect
+              value={selectedRoomId}
+              onChange={(event) => {
+                setSelectedRoomId(event.target.value);
+                setReservationForm((current) => ({ ...current, preferredZone: "" }));
+              }}
+              className="font-medium"
+            >
+              {selectedBranch?.rooms.map((room) => (
+                <option key={room.id} value={room.id}>
+                  {room.name}
+                </option>
+              ))}
+            </FoodieSelect>
           </label>
           <label className="space-y-2 text-sm text-brand-ink md:col-span-2">
             <span className="font-medium">Cumpleanos</span>
