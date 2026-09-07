@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, LockKeyhole, LockOpen, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, CalendarDays, LockKeyhole, LockOpen, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { AppModal } from "./app-modal";
 import { ConfirmDialog } from "./confirm-dialog";
 import { FoodieSelect } from "./foodie-select";
 import { WorkspaceShell } from "./workspace-shell";
 import { useWorkspace } from "./workspace-provider";
-import type { Room } from "../lib/types";
+import type { Room, RoomBookingRule } from "../lib/types";
+
+const weekdayOptions = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+type BookingRuleForm = { id?: string; weekdays: number[]; turns: Array<"mediodia" | "noche">; startsAt: string; endsAt: string; reason: string };
+const newBookingRuleForm = (startsAt: string): BookingRuleForm => ({ weekdays: [1, 2, 3, 4, 5], turns: ["mediodia", "noche"], startsAt, endsAt: "", reason: "" });
 
 type EditorKind =
   | "wall"
@@ -372,6 +376,10 @@ export function SalonPage() {
     roomBlocks,
     blockRoom,
     unblockRoom,
+    loadRoomBookingRules,
+    createRoomBookingRule,
+    updateRoomBookingRule,
+    deleteRoomBookingRule,
     deleteRoom,
     saveRoomLayout,
     roomForm,
@@ -409,6 +417,12 @@ export function SalonPage() {
   const [isSavingLayout, setIsSavingLayout] = useState(false);
   const [isReorderingRooms, setIsReorderingRooms] = useState(false);
   const [changingBlockRoomId, setChangingBlockRoomId] = useState("");
+  const [bookingRuleRoom, setBookingRuleRoom] = useState<Room | null>(null);
+  const [bookingRules, setBookingRules] = useState<RoomBookingRule[]>([]);
+  const [bookingRuleForm, setBookingRuleForm] = useState<BookingRuleForm>(() => newBookingRuleForm(selectedDate));
+  const [bookingRulesLoading, setBookingRulesLoading] = useState(false);
+  const [bookingRuleSaving, setBookingRuleSaving] = useState(false);
+  const [bookingRuleError, setBookingRuleError] = useState("");
   const [openRoomMenuId, setOpenRoomMenuId] = useState("");
   const dragMovedRef = useRef(false);
   const undoStackRef = useRef<DesignSnapshot[]>([]);
@@ -653,6 +667,47 @@ export function SalonPage() {
     } finally {
       setChangingBlockRoomId("");
     }
+  }
+
+  async function openBookingRules(room: Room) {
+    setBookingRuleRoom(room);
+    setBookingRuleForm(newBookingRuleForm(selectedDate));
+    setBookingRuleError("");
+    setBookingRulesLoading(true);
+    try {
+      setBookingRules(await loadRoomBookingRules(room.id));
+    } finally {
+      setBookingRulesLoading(false);
+    }
+  }
+
+  function editBookingRule(rule: RoomBookingRule) {
+    setBookingRuleForm({ id: rule.id, weekdays: rule.weekdays, turns: rule.turns, startsAt: rule.startsAt.slice(0, 10), endsAt: rule.endsAt?.slice(0, 10) || "", reason: rule.reason || "" });
+  }
+
+  async function saveBookingRule() {
+    if (!bookingRuleRoom || !bookingRuleForm.weekdays.length || !bookingRuleForm.turns.length || !bookingRuleForm.startsAt) return;
+    setBookingRuleSaving(true);
+    setBookingRuleError("");
+    try {
+      const input = { weekdays: bookingRuleForm.weekdays, turns: bookingRuleForm.turns, startsAt: bookingRuleForm.startsAt, endsAt: bookingRuleForm.endsAt || null, reason: bookingRuleForm.reason || null };
+      const saved = bookingRuleForm.id
+        ? await updateRoomBookingRule(bookingRuleRoom.id, bookingRuleForm.id, input)
+        : await createRoomBookingRule(bookingRuleRoom.id, input);
+      setBookingRules((current) => bookingRuleForm.id ? current.map((rule) => rule.id === saved.id ? saved : rule) : [...current, saved]);
+      setBookingRuleForm(newBookingRuleForm(selectedDate));
+    } catch (error) {
+      setBookingRuleError(error instanceof Error ? error.message : "No se pudo guardar el bloqueo programado");
+    } finally {
+      setBookingRuleSaving(false);
+    }
+  }
+
+  async function removeBookingRule(ruleId: string) {
+    if (!bookingRuleRoom) return;
+    await deleteRoomBookingRule(bookingRuleRoom.id, ruleId);
+    setBookingRules((current) => current.filter((rule) => rule.id !== ruleId));
+    if (bookingRuleForm.id === ruleId) setBookingRuleForm(newBookingRuleForm(selectedDate));
   }
 
   function openEditor(roomId: string) {
@@ -1335,6 +1390,15 @@ export function SalonPage() {
                     >
                       {changingBlockRoomId === room.id ? <span className="text-xs">...</span> : block ? <LockOpen className="h-4 w-4" /> : <LockKeyhole className="h-4 w-4" />}
                     </button>
+                    <button
+                      type="button"
+                      title="Programar bloqueos"
+                      aria-label={`Programar bloqueos para ${room.name}`}
+                      onClick={() => void openBookingRules(room)}
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-brand-line bg-white text-brand-ink transition hover:border-brand-orange hover:text-brand-orange"
+                    >
+                      <CalendarDays className="h-4 w-4" />
+                    </button>
                     <div className="relative">
                       <button type="button" aria-label={`Mas acciones para ${room.name}`} title="Mas acciones" onClick={() => setOpenRoomMenuId((current) => current === room.id ? "" : room.id)} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-brand-line bg-white text-brand-ink transition hover:border-brand-orange hover:text-brand-orange"><MoreHorizontal className="h-4 w-4" /></button>
                       {openRoomMenuId === room.id ? <div className="absolute bottom-12 right-0 z-20 w-40 rounded-2xl border border-brand-line bg-white p-1.5 shadow-lg">
@@ -1706,6 +1770,53 @@ export function SalonPage() {
           </div>
         </section>
       )}
+
+      <AppModal
+        open={Boolean(bookingRuleRoom)}
+        title={`Bloqueos programados${bookingRuleRoom ? ` · ${bookingRuleRoom.name}` : ""}`}
+        description="Cerrá este salón de forma recurrente sin tener que bloquear cada fecha manualmente."
+        onClose={() => setBookingRuleRoom(null)}
+        widthClassName="max-w-3xl"
+        footer={
+          <>
+            <button type="button" onClick={() => setBookingRuleRoom(null)} className="rounded-full border border-brand-line px-4 py-3 text-sm font-medium text-brand-ink">Cerrar</button>
+            <button type="button" disabled={bookingRuleSaving || !bookingRuleForm.weekdays.length || !bookingRuleForm.turns.length || !bookingRuleForm.startsAt} onClick={() => void saveBookingRule()} className="rounded-full bg-brand-orange px-4 py-3 text-sm font-medium text-white disabled:opacity-60">{bookingRuleSaving ? "Guardando..." : bookingRuleForm.id ? "Actualizar bloqueo" : "Programar bloqueo"}</button>
+          </>
+        }
+      >
+        <div className="space-y-5">
+          <div>
+            <p className="text-sm font-semibold text-white">Días de cierre</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {weekdayOptions.map((label, weekday) => {
+                const active = bookingRuleForm.weekdays.includes(weekday);
+                return <button key={label} type="button" onClick={() => setBookingRuleForm((current) => ({ ...current, weekdays: active ? current.weekdays.filter((item) => item !== weekday) : [...current.weekdays, weekday].sort() }))} className={`rounded-full border px-3 py-2 text-xs font-semibold ${active ? "border-brand-orange bg-brand-orange text-white" : "border-white/20 bg-white/5 text-white"}`}>{label}</button>;
+              })}
+            </div>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-white">Turnos</p>
+            <div className="mt-3 flex gap-2">
+              {(["mediodia", "noche"] as const).map((turn) => {
+                const active = bookingRuleForm.turns.includes(turn);
+                return <button key={turn} type="button" onClick={() => setBookingRuleForm((current) => ({ ...current, turns: active ? current.turns.filter((item) => item !== turn) : [...current.turns, turn] }))} className={`rounded-full border px-4 py-2 text-sm font-semibold ${active ? "border-brand-orange bg-brand-orange text-white" : "border-white/20 bg-white/5 text-white"}`}>{turn === "mediodia" ? "Mediodía" : "Noche"}</button>;
+              })}
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="block space-y-2"><span className="text-sm font-semibold text-white">Desde</span><input type="date" value={bookingRuleForm.startsAt} onChange={(event) => setBookingRuleForm((current) => ({ ...current, startsAt: event.target.value }))} className="w-full rounded-2xl border border-white/10 bg-white px-4 py-3 text-brand-ink" /></label>
+            <label className="block space-y-2"><span className="text-sm font-semibold text-white">Hasta (opcional)</span><input type="date" min={bookingRuleForm.startsAt} value={bookingRuleForm.endsAt} onChange={(event) => setBookingRuleForm((current) => ({ ...current, endsAt: event.target.value }))} className="w-full rounded-2xl border border-white/10 bg-white px-4 py-3 text-brand-ink" /></label>
+          </div>
+          <label className="block space-y-2"><span className="text-sm font-semibold text-white">Motivo (opcional)</span><input value={bookingRuleForm.reason} maxLength={500} onChange={(event) => setBookingRuleForm((current) => ({ ...current, reason: event.target.value }))} placeholder="Ej.: Cerrado días hábiles" className="w-full rounded-2xl border border-white/10 bg-white px-4 py-3 text-brand-ink placeholder:text-neutral-400" /></label>
+          {bookingRuleError ? <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{bookingRuleError}</p> : null}
+          <div className="border-t border-white/10 pt-5">
+            <div className="flex items-center justify-between gap-3"><div><p className="text-sm font-semibold text-white">Reglas guardadas</p><p className="mt-1 text-xs text-white/70">Podés editar una regla o eliminarla para volver a habilitar el salón.</p></div>{bookingRuleForm.id ? <button type="button" onClick={() => setBookingRuleForm(newBookingRuleForm(selectedDate))} className="text-xs font-semibold text-brand-orange">Nueva regla</button> : null}</div>
+            <div className="mt-3 space-y-2">
+              {bookingRulesLoading ? <p className="text-sm text-white/70">Cargando bloqueos...</p> : bookingRules.length ? bookingRules.map((rule) => <div key={rule.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 p-3"><div className="text-sm text-white"><p className="font-semibold">{rule.weekdays.map((weekday) => weekdayOptions[weekday].slice(0, 3)).join(", ")} · {rule.turns.map((turn) => turn === "mediodia" ? "Mediodía" : "Noche").join(" y ")}</p><p className="mt-1 text-xs text-white/70">Desde {rule.startsAt.slice(0, 10)}{rule.endsAt ? ` hasta ${rule.endsAt.slice(0, 10)}` : " · sin fecha de fin"}{rule.reason ? ` · ${rule.reason}` : ""}</p></div><div className="flex gap-2"><button type="button" onClick={() => editBookingRule(rule)} className="rounded-full border border-white/20 px-3 py-1.5 text-xs font-semibold text-white">Editar</button><button type="button" onClick={() => void removeBookingRule(rule.id)} className="rounded-full border border-red-300/60 px-3 py-1.5 text-xs font-semibold text-red-200">Eliminar</button></div></div>) : <p className="text-sm text-white/70">Todavía no hay bloqueos recurrentes.</p>}
+            </div>
+          </div>
+        </div>
+      </AppModal>
 
       <AppModal
         open={roomModalMode === "create" || roomModalMode === "edit"}

@@ -72,6 +72,18 @@ export type RoomBookingBlock = {
   createdAt: string;
 };
 
+export type RoomBookingRule = {
+  id: string;
+  roomId: string;
+  weekdays: number[];
+  turns: Array<"mediodia" | "noche">;
+  startsAt: string;
+  endsAt?: string | null;
+  reason?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type Branch = {
   id: string;
   name: string;

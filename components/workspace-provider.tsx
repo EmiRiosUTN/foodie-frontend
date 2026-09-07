@@ -17,6 +17,7 @@ import type {
   RestaurantStaffUser,
   RestaurantUserRole,
   RoomBookingBlock,
+  RoomBookingRule,
   RoomDetail,
   ServiceState,
   WorkspaceUser
@@ -75,6 +76,10 @@ type WorkspaceContextValue = {
   reorderRooms: (branchId: string, roomIds: string[]) => Promise<void>;
   blockRoom: (roomId: string, reason?: string) => Promise<void>;
   unblockRoom: (roomId: string) => Promise<void>;
+  loadRoomBookingRules: (roomId: string) => Promise<RoomBookingRule[]>;
+  createRoomBookingRule: (roomId: string, input: Omit<RoomBookingRule, "id" | "roomId" | "createdAt" | "updatedAt">) => Promise<RoomBookingRule>;
+  updateRoomBookingRule: (roomId: string, ruleId: string, input: Omit<RoomBookingRule, "id" | "roomId" | "createdAt" | "updatedAt">) => Promise<RoomBookingRule>;
+  deleteRoomBookingRule: (roomId: string, ruleId: string) => Promise<void>;
   deleteRoom: (roomId: string) => Promise<void>;
   saveRoomLayout: (roomId: string, payload: unknown) => Promise<void>;
   createReservation: () => Promise<void>;
@@ -838,6 +843,28 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       throw error;
     }
   }
+
+  async function loadRoomBookingRules(roomId: string) {
+    return api<RoomBookingRule[]>(`/restaurant/rooms/${roomId}/booking-rules`);
+  }
+
+  async function createRoomBookingRule(roomId: string, input: Omit<RoomBookingRule, "id" | "roomId" | "createdAt" | "updatedAt">) {
+    const rule = await api<RoomBookingRule>(`/restaurant/rooms/${roomId}/booking-rules`, { method: "POST", body: JSON.stringify(input) });
+    setFeedback("Bloqueo programado guardado");
+    return rule;
+  }
+
+  async function updateRoomBookingRule(roomId: string, ruleId: string, input: Omit<RoomBookingRule, "id" | "roomId" | "createdAt" | "updatedAt">) {
+    const rule = await api<RoomBookingRule>(`/restaurant/rooms/${roomId}/booking-rules/${ruleId}`, { method: "PATCH", body: JSON.stringify(input) });
+    setFeedback("Bloqueo programado actualizado");
+    return rule;
+  }
+
+  async function deleteRoomBookingRule(roomId: string, ruleId: string) {
+    await api(`/restaurant/rooms/${roomId}/booking-rules/${ruleId}`, { method: "DELETE" });
+    setFeedback("Bloqueo programado eliminado");
+  }
+
   async function createPlatformRestaurant(input: {
     restaurantName: string;
     slug: string;
@@ -961,6 +988,10 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       reorderRooms,
       blockRoom,
       unblockRoom,
+      loadRoomBookingRules,
+      createRoomBookingRule,
+      updateRoomBookingRule,
+      deleteRoomBookingRule,
       deleteRoom,
       saveRoomLayout,
       createReservation,
