@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FoodieSelect } from "./foodie-select";
 import { WorkspaceShell } from "./workspace-shell";
 import { useWorkspace } from "./workspace-provider";
@@ -114,6 +114,7 @@ export function PanelPage() {
     setSelectedBranchId,
     setSelectedDate,
     setSelectedTurn,
+    roomBlocks,
     tableStates,
     setTableState,
     moveReservation
@@ -127,6 +128,14 @@ export function PanelPage() {
 
   const selectedBranch = bootstrap?.branches.find((branch) => branch.id === selectedBranchId);
   const selectedRoom = selectedBranch?.rooms.find((room) => room.id === selectedRoomId) || null;
+  const selectedRoomBlock = roomBlocks.find((block) => block.roomId === selectedRoomId) || null;
+  const isSelectedRoomBlocked = Boolean(selectedRoomBlock);
+
+  useEffect(() => {
+    if (!isSelectedRoomBlocked) return;
+    setSelectedTableId("");
+    setOpenMenuTableId("");
+  }, [isSelectedRoomBlocked]);
 
   const tableStateMap = useMemo(() => {
     return new Map(tableStates.map((state) => [state.tableId, state]));
@@ -188,7 +197,7 @@ export function PanelPage() {
             >
               {selectedBranch?.rooms.map((room) => (
                 <option key={room.id} value={room.id}>
-                  {room.name}
+                  {room.name}{roomBlocks.some((block) => block.roomId === room.id) ? " (Bloqueado)" : ""}
                 </option>
               ))}
             </FoodieSelect>
@@ -225,9 +234,17 @@ export function PanelPage() {
           ) : (
             <div
               ref={layoutWrapRef}
-              className="max-h-[78vh] w-full overflow-scroll overscroll-contain rounded-[24px] border border-brand-line bg-[#F7F4EF] p-3 sm:p-4"
+              className="relative max-h-[78vh] w-full overflow-scroll overscroll-contain rounded-[24px] border border-brand-line bg-[#F7F4EF] p-3 sm:p-4"
               style={{ scrollbarGutter: "stable both-edges" }}
             >
+              {isSelectedRoomBlocked ? (
+                <div className="pointer-events-none sticky top-0 z-30 flex justify-center px-3 pt-3">
+                  <div className="rounded-2xl border border-[#D39C11] bg-[#FFF8E1]/95 px-5 py-3 text-center shadow-lg backdrop-blur-sm">
+                    <p className="text-sm font-bold text-[#8A5B00]">Salón bloqueado para este turno</p>
+                    <p className="mt-1 text-xs text-[#8A5B00]">{selectedRoomBlock?.reason || "No se pueden operar mesas mientras el salón esté cerrado."}</p>
+                  </div>
+                </div>
+              ) : null}
               <div className="relative shrink-0" style={{ width: CANVAS_WIDTH * layoutScale, minWidth: CANVAS_WIDTH * layoutScale, height: CANVAS_HEIGHT * layoutScale }}>
                 <div
                   className="relative origin-top-left"
@@ -255,11 +272,12 @@ export function PanelPage() {
                     >
                       <button
                         type="button"
+                        disabled={isSelectedRoomBlocked}
                         onClick={() => {
                           setSelectedTableId(table.id);
                           setOpenMenuTableId("");
                         }}
-                        className={`relative h-full w-full border-2 text-center shadow-sm transition ${shapeClass(table.shape)} ${tableStateStyle(status)} ${
+                        className={`relative h-full w-full border-2 text-center shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${shapeClass(table.shape)} ${tableStateStyle(status)} ${
                           selectedTableId === table.id ? "ring-4 ring-[#FFB088]" : ""
                         }`}
                       >
@@ -276,12 +294,13 @@ export function PanelPage() {
                       <div className="absolute -left-2 -top-2 z-20">
                         <button
                           type="button"
+                          disabled={isSelectedRoomBlocked}
                           onClick={(event) => {
                             event.stopPropagation();
                             setSelectedTableId(table.id);
                             setOpenMenuTableId((current) => (current === table.id ? "" : table.id));
                           }}
-                          className="flex h-7 w-7 items-center justify-center rounded-full border border-brand-line bg-white text-sm font-bold text-brand-ink shadow-sm"
+                          className="flex h-7 w-7 items-center justify-center rounded-full border border-brand-line bg-white text-sm font-bold text-brand-ink shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
                           aria-label="Acciones de mesa"
                         >
                           ⋯
@@ -291,6 +310,7 @@ export function PanelPage() {
                           <div className="absolute left-0 top-8 flex flex-col gap-2 rounded-[18px] border border-brand-line bg-white p-2 shadow-[0_12px_24px_rgba(31,31,33,0.12)]">
                             <button
                               type="button"
+                              disabled={isSelectedRoomBlocked}
                               onClick={() => {
                                 setOpenMenuTableId("");
                                 if (status === "reserved" && reservation) {
@@ -299,13 +319,14 @@ export function PanelPage() {
                                 }
                                 void setTableState(table.id, "occupied");
                               }}
-                              className="flex h-8 w-8 items-center justify-center rounded-full border border-brand-line text-sm text-[#8A5B00] hover:border-[#D39C11]"
+                              className="flex h-8 w-8 items-center justify-center rounded-full border border-brand-line text-sm text-[#8A5B00] hover:border-[#D39C11] disabled:cursor-not-allowed disabled:opacity-50"
                               aria-label="Ocupar mesa"
                             >
                               ●
                             </button>
                             <button
                               type="button"
+                              disabled={isSelectedRoomBlocked}
                               onClick={() => {
                                 setOpenMenuTableId("");
                                 if (reservation) {
@@ -314,7 +335,7 @@ export function PanelPage() {
                                 }
                                 void setTableState(table.id, "free");
                               }}
-                              className="flex h-8 w-8 items-center justify-center rounded-full border border-brand-line text-sm text-[#146C37] hover:border-[#2F8F57]"
+                              className="flex h-8 w-8 items-center justify-center rounded-full border border-brand-line text-sm text-[#146C37] hover:border-[#2F8F57] disabled:cursor-not-allowed disabled:opacity-50"
                               aria-label="Liberar mesa"
                             >
                               ✓
