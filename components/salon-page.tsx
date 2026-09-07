@@ -1161,7 +1161,7 @@ export function SalonPage() {
           id: `${selectedRoomId}-combo-${index + 1}`,
           parentTableId,
           childTableId,
-          combinedSeats: Math.max(1, getTableMaxPartySize(left) + getTableMaxPartySize(right) - 2)
+          combinedSeats: getTableMaxPartySize(left) + getTableMaxPartySize(right)
         };
       })
       .filter((item): item is { id: string; parentTableId: string; childTableId: string; combinedSeats: number } => Boolean(item));
@@ -1743,7 +1743,7 @@ export function SalonPage() {
                   {possibleCombinationPairs.length ? (
                     possibleCombinationPairs.map((pair) => {
                       const active = activeCombinationKeys.includes(pair.key);
-                      const combinedSeats = Math.max(1, getTableMaxPartySize(pair.left) + getTableMaxPartySize(pair.right) - 2);
+                      const combinedSeats = getTableMaxPartySize(pair.left) + getTableMaxPartySize(pair.right);
                       return (
                         <button
                           key={pair.key}
@@ -1756,7 +1756,7 @@ export function SalonPage() {
                             {pair.left.label} + {pair.right.label}
                           </p>
                           <p className="mt-1 text-xs text-neutral-500">
-                            {getTableMaxPartySize(pair.left)} + {getTableMaxPartySize(pair.right)} - 2 = {combinedSeats} pax
+                            {getTableMaxPartySize(pair.left)} + {getTableMaxPartySize(pair.right)} = {combinedSeats} pax
                           </p>
                         </button>
                       );
