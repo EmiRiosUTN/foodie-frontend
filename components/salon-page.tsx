@@ -59,11 +59,6 @@ type TableItemMetadata = {
   };
 };
 
-type DesignState = {
-  items: EditorItem[];
-  combinationKeys: string[];
-};
-
 type PendingTableDraft = {
   kind: Extract<EditorKind, "round" | "square" | "rectangular">;
   label: string;
@@ -497,60 +492,23 @@ export function SalonPage() {
 
     const fallback = buildEditorItems(roomDetail);
     setEditorZones(roomDetail.zones);
-    const saved = window.localStorage.getItem(storageKey);
-
-    if (!saved) {
-      setEditorItems(fallback.items);
-      setCombinationKeys(fallback.combinationKeys);
-      setSelectedItemId("");
-      resetHistory(fallback);
-      setHasUnsavedChanges(false);
-      setLastSavedAt("");
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(saved) as DesignState | EditorItem[];
-      const normalizeItems = (items: EditorItem[]) =>
-        items.map((item) => ({
-          ...item,
-          rotation: normalizeRotation(item.rotation || 0)
-        }));
-      if (Array.isArray(parsed)) {
-        const snapshot = { items: normalizeItems(parsed), combinationKeys: [] };
-        setEditorItems(snapshot.items);
-        setCombinationKeys(snapshot.combinationKeys);
-        resetHistory(snapshot);
-      } else {
-        const snapshot = {
-          items: normalizeItems(parsed.items || fallback.items),
-          combinationKeys: parsed.combinationKeys || []
-        };
-        setEditorItems(snapshot.items);
-        setCombinationKeys(snapshot.combinationKeys);
-        resetHistory(snapshot);
-      }
-      setSelectedItemId("");
-      setHasUnsavedChanges(false);
-      setLastSavedAt("Guardado");
-    } catch {
-      setEditorItems(fallback.items);
-      setCombinationKeys(fallback.combinationKeys);
-      setSelectedItemId("");
-      resetHistory(fallback);
-      setHasUnsavedChanges(false);
-      setLastSavedAt("");
-    }
+    window.localStorage.removeItem(storageKey);
+    setEditorItems(fallback.items);
+    setCombinationKeys(fallback.combinationKeys);
+    setSelectedItemId("");
+    resetHistory(fallback);
+    setHasUnsavedChanges(false);
+    setLastSavedAt("");
   }, [roomDetail, storageKey]);
 
   useEffect(() => {
-    if (!storageKey && !editorItems.length && !combinationKeys.length) {
+    if (!editorItems.length && !combinationKeys.length) {
       setHasUnsavedChanges(false);
       return;
     }
 
     setHasUnsavedChanges(serializeSnapshot(createSnapshot()) !== baselineSnapshotRef.current);
-  }, [editorItems, combinationKeys, storageKey]);
+  }, [editorItems, combinationKeys]);
 
   useEffect(() => {
     const node = canvasRef.current;
@@ -1173,7 +1131,7 @@ export function SalonPage() {
   }
 
   async function saveDesignChanges() {
-    if (!storageKey || !selectedRoomId || !roomDetail) return;
+    if (!selectedRoomId || !roomDetail) return;
 
     const tableItems = editorItems.filter((item) => isTableKind(item.kind));
     const fixedItems = editorItems.filter((item) => !isTableKind(item.kind));
@@ -1226,14 +1184,11 @@ export function SalonPage() {
       })),
       combinations
     };
-    const localPayload: DesignState = { items: editorItems, combinationKeys: activeCombinationKeys };
-
     setIsSavingLayout(true);
 
     try {
       await saveRoomLayout(selectedRoomId, payload);
-      window.localStorage.setItem(storageKey, JSON.stringify(localPayload));
-      baselineSnapshotRef.current = serializeSnapshot(localPayload);
+      baselineSnapshotRef.current = serializeSnapshot(createSnapshot());
       setHasUnsavedChanges(false);
       setLastSavedAt(
         new Date().toLocaleTimeString("es-AR", {
