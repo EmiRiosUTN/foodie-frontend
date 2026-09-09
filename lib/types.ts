@@ -269,6 +269,19 @@ export type Reservation = {
   room: { id: string; name: string };
   customer?: { id: string; fullName: string; tags: Array<{ id: string; label: string }> } | null;
   tables: Array<{ table: { id: string; label: string; seats: number } }>;
+  deposit?: { id: string; requiredAmount: number | string; paidAmount: number | string; currency: string; status: "pending" | "partial" | "complete" } | null;
+};
+
+export type ReservationDeposit = {
+  id: string;
+  requiredAmount: number | string;
+  paidAmount: number | string;
+  currency: string;
+  status: "pending" | "partial" | "complete";
+  notes?: string | null;
+  reservation: { id: string; code: string; fullName: string; phone: string; serviceDate: string; serviceTime: string };
+  entries: Array<{ id: string; type: "payment" | "refund" | "adjustment"; amount: number | string; paidAt: string; paymentMethod: string; reference?: string | null; notes?: string | null; proofs: Array<{ id: string; originalName: string }> }>;
+  proofRequests: Array<{ id: string; status: string; expiresAt: string; proofs: Array<{ id: string; originalName: string; receivedAt: string }> }>;
 };
 
 export type ReservationTableOption = {

@@ -99,7 +99,8 @@ const configurationItems: NavigationItem["children"] = [{ href: "/configuracion/
       ? [...restaurantNavigationItems, { href: "/configuracion/personalizar", label: "Configuración", children: configurationItems }, { href: "/usuarios", label: "Usuarios" }]
       : isEvents ? eventsNavigationItems : isReception ? receptionNavigationItems : restaurantNavigationItems;
   const giftCardNavigationItems: NavigationItem[] = currentUser?.scope === "restaurant" && currentUser.role === "restaurant_owner" ? [{ href: "/gift-cards", label: "Gift Cards" }] : [];
-  const navigationItems: NavigationItem[] = currentUser?.scope === "platform" ? platformNavigationItems : [...restaurantBaseNavigationItems, ...giftCardNavigationItems, ...chatNavigationItems];
+  const depositNavigationItems: NavigationItem[] = currentUser?.scope === "restaurant" && ["restaurant_owner", "restaurant_manager", "cashier"].includes(currentUser.role) ? [{ href: "/senas", label: "Señas" }] : [];
+  const navigationItems: NavigationItem[] = currentUser?.scope === "platform" ? platformNavigationItems : [...restaurantBaseNavigationItems, ...depositNavigationItems, ...giftCardNavigationItems, ...chatNavigationItems];
   const workspaceLabel = currentUser?.scope === "platform" ? "Administracion" : "Operacion";
   const workspaceName = currentUser?.scope === "platform" ? "Foodie AI" : bootstrap?.name || "Restaurante";
   const workspaceImage = currentUser?.scope === "restaurant" ? bootstrap?.profileImageUrl : "";

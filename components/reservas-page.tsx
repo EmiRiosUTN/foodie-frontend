@@ -46,7 +46,9 @@ export function ReservasPage() {
     setSelectedDate,
     setSelectedTurn,
     selectedBranchId,
-    loadReservationHistory
+    loadReservationHistory,
+    token,
+    currentUser
   } = useWorkspace();
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -63,8 +65,20 @@ export function ReservasPage() {
   const [historyRows, setHistoryRows] = useState<Reservation[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
+  const [depositReservation, setDepositReservation] = useState<Reservation | null>(null);
+  const [depositAmount, setDepositAmount] = useState("");
+  const [depositNotes, setDepositNotes] = useState("");
+  const [depositError, setDepositError] = useState("");
   const zonePills = roomDetail?.zones || [];
   const selectedBranch = bootstrap?.branches.find((branch) => branch.id === selectedBranchId);
+  const canManageDeposits = currentUser?.scope === "restaurant" && ["restaurant_owner", "restaurant_manager", "cashier"].includes(currentUser.role);
+  const depositLabel = (reservation: Reservation) => reservation.deposit ? ({ pending: "Seña pendiente", partial: "Seña parcial", complete: "Seña completa" }[reservation.deposit.status]) : "Sin seña requerida";
+  async function saveDeposit() {
+    if (!depositReservation || Number(depositAmount) <= 0) { setDepositError("Ingresá un importe de seña válido."); return; }
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1"}/restaurant/reservations/${depositReservation.id}/deposit`, { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ requiredAmount: Number(depositAmount), notes: depositNotes, currency: "ARS" }) });
+    if (!response.ok) { setDepositError(await response.text() || "No se pudo guardar la seña."); return; }
+    window.location.href = "/senas";
+  }
 
   const sortedReservations = useMemo(
     () =>
@@ -264,7 +278,7 @@ export function ReservasPage() {
                       <p className="truncate text-xs text-neutral-400">{reservation.tables.map((item) => item.table.label).join(", ") || "Sin asignacion"}</p>
                     </div>
                     <div className="text-sm font-semibold text-brand-ink">{reservation.code}</div>
-                    <div className="text-sm text-neutral-500">{reservation.status}</div>
+                    <div className="text-sm text-neutral-500"><p>{reservation.status}</p><p className={`mt-1 text-xs font-medium ${reservation.deposit?.status === "complete" ? "text-emerald-700" : reservation.deposit ? "text-amber-700" : "text-neutral-400"}`}>{depositLabel(reservation)}</p></div>
                     <div className="flex items-start justify-end gap-2">
                       <button
                         type="button"
@@ -289,6 +303,7 @@ export function ReservasPage() {
                           Cambiar mesa
                         </button>
                       ) : null}
+                      {canManageDeposits ? <button type="button" onClick={() => { setDepositReservation(reservation); setDepositAmount(reservation.deposit ? String(reservation.deposit.requiredAmount) : ""); setDepositNotes(""); setDepositError(""); }} className="rounded-full border border-brand-line px-3 py-2 text-xs font-medium text-brand-ink">Seña</button> : null}
                     </div>
                   </div>
                 ))}
@@ -306,10 +321,11 @@ export function ReservasPage() {
                         {reservation.code} - {reservation.partySize} cubiertos - {reservation.serviceTime}
                       </p>
                     </div>
-                    <div className="shrink-0 text-xs font-medium text-neutral-500">{reservation.status}</div>
+                    <div className="shrink-0 text-right text-xs font-medium text-neutral-500"><p>{reservation.status}</p><p className="mt-1 text-[10px] text-brand-orange">{depositLabel(reservation)}</p></div>
                   </div>
                   <p className="mt-3 text-xs text-neutral-400">{reservation.tables.map((item) => item.table.label).join(", ") || "Sin asignacion"}</p>
                   <div className="mt-4 flex gap-2">
+                    {canManageDeposits ? <button type="button" onClick={() => { setDepositReservation(reservation); setDepositAmount(reservation.deposit ? String(reservation.deposit.requiredAmount) : ""); setDepositNotes(""); setDepositError(""); }} className="flex-1 rounded-full border border-brand-line px-4 py-2.5 text-sm font-medium text-brand-ink">Seña</button> : null}
                     <button
                       type="button"
                       onClick={() => moveReservation(reservation.id, "check-in")}
@@ -473,6 +489,10 @@ export function ReservasPage() {
       ) : null}
 
       <ReservationTableReassignModal reservation={reassignReservation} onClose={() => setReassignReservation(null)} />
+
+      <AppModal open={Boolean(depositReservation)} onClose={() => setDepositReservation(null)} title="Configurar seña" description="La reserva quedará pendiente hasta registrar y validar los pagos." footer={<><button onClick={() => setDepositReservation(null)} className="flex-1 rounded-full border border-brand-line px-4 py-3 text-sm">Cancelar</button><button onClick={() => void saveDeposit()} className="flex-1 rounded-full bg-brand-orange px-4 py-3 text-sm text-white">Guardar seña</button></>}>
+        <div className="space-y-4"><p className="text-sm text-neutral-600">{depositReservation?.fullName} · {depositReservation?.code}</p><label className="block text-sm font-medium text-brand-ink">Importe requerido<input type="number" min="0.01" step="0.01" value={depositAmount} onChange={(event) => setDepositAmount(event.target.value)} className="mt-2 w-full rounded-2xl border border-brand-line px-4 py-3" /></label><label className="block text-sm font-medium text-brand-ink">Observaciones<textarea value={depositNotes} onChange={(event) => setDepositNotes(event.target.value)} className="mt-2 h-24 w-full rounded-2xl border border-brand-line px-4 py-3" /></label>{depositError ? <p className="text-sm text-red-700">{depositError}</p> : null}</div>
+      </AppModal>
 
       <AppModal
         open={createOpen}
