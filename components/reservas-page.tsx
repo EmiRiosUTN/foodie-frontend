@@ -1,7 +1,7 @@
 "use client";
 
 import { CalendarDays, CheckCircle2, Clock3, Download, Plus, Printer, Search, Trash2, Users } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Reservation } from "../lib/types";
 import { AppModal } from "./app-modal";
 import { ConfirmDialog } from "./confirm-dialog";
@@ -49,12 +49,15 @@ export function ReservasPage() {
     setSelectedDate,
     setSelectedTurn,
     selectedBranchId,
-    loadReservationHistory
+    loadReservationHistory,
+    loadAvailableReservationTableOptions
   } = useWorkspace();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [reassignReservation, setReassignReservation] = useState<Reservation | null>(null);
   const [formError, setFormError] = useState("");
+  const [tableOptions, setTableOptions] = useState<import("../lib/types").ReservationTableOption[]>([]);
+  const [tableOptionsLoading, setTableOptionsLoading] = useState(false);
   const [activeView, setActiveView] = useState<"turno" | "historico">("turno");
   const [historyFilters, setHistoryFilters] = useState({
     dateFrom: selectedDate,
@@ -71,6 +74,38 @@ export function ReservasPage() {
   const zonePills = roomDetail?.zones || [];
   const selectedBranch = bootstrap?.branches.find((branch) => branch.id === selectedBranchId);
   const canDeleteReservations = ["restaurant_owner", "restaurant_manager"].includes(currentUser?.role || "");
+
+  useEffect(() => {
+    if (!createOpen || !selectedBranchId || !selectedRoomId || !selectedDate || !reservationForm.serviceTime) {
+      setTableOptions([]);
+      return;
+    }
+    const partySize = Number(reservationForm.partySize);
+    if (!Number.isInteger(partySize) || partySize < 1) {
+      setTableOptions([]);
+      return;
+    }
+    let active = true;
+    setTableOptionsLoading(true);
+    loadAvailableReservationTableOptions({
+      branchId: selectedBranchId,
+      roomId: selectedRoomId,
+      partySize,
+      serviceDate: selectedDate,
+      serviceTime: reservationForm.serviceTime,
+      preferredZone: reservationForm.preferredZone || undefined
+    })
+      .then((options) => {
+        if (!active) return;
+        setTableOptions(options);
+        setReservationForm((current) => current.selectedTableIds.length && options.some((option) => option.tableIds.join("|") === current.selectedTableIds.join("|"))
+          ? current
+          : { ...current, selectedTableIds: [] });
+      })
+      .catch(() => { if (active) setTableOptions([]); })
+      .finally(() => { if (active) setTableOptionsLoading(false); });
+    return () => { active = false; };
+  }, [createOpen, selectedBranchId, selectedRoomId, selectedDate, reservationForm.partySize, reservationForm.serviceTime, reservationForm.preferredZone, loadAvailableReservationTableOptions, setReservationForm]);
 
   const sortedReservations = useMemo(
     () =>
@@ -620,6 +655,28 @@ export function ReservasPage() {
               ))}
             </FoodieSelect>
           </label>
+          <div className="space-y-2 text-sm text-brand-ink md:col-span-2">
+            <span className="font-medium">Mesa o combinación (opcional)</span>
+            <FoodieSelect
+              value={reservationForm.selectedTableIds.join("|")}
+              onChange={(event) => setReservationForm((current) => ({
+                ...current,
+                selectedTableIds: event.target.value ? event.target.value.split("|") : []
+              }))}
+              className="font-medium"
+              disabled={tableOptionsLoading}
+            >
+              <option value="">Asignar automáticamente</option>
+              {tableOptions.map((option) => (
+                <option key={option.tableIds.join("|")} value={option.tableIds.join("|")}>
+                  {option.tableLabels.join(" + ")} · {option.seats} pax
+                </option>
+              ))}
+            </FoodieSelect>
+            <p className="text-xs text-neutral-500">
+              {tableOptionsLoading ? "Buscando mesas disponibles..." : tableOptions.length ? "La selección manual se respeta al crear la reserva." : "No hay opciones disponibles para estos datos."}
+            </p>
+          </div>
           <label className="space-y-2 text-sm text-brand-ink md:col-span-2">
             <span className="font-medium">Cumpleanos</span>
             <input

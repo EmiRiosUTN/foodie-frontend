@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FoodieSelect } from "./foodie-select";
+import { AppModal } from "./app-modal";
 import { ReservationTableReassignModal } from "./reservation-table-reassign-modal";
 import { WorkspaceShell } from "./workspace-shell";
 import { useWorkspace } from "./workspace-provider";
@@ -118,13 +119,20 @@ export function PanelPage() {
     roomBlocks,
     tableStates,
     setTableState,
-    moveReservation
+    moveReservation,
+    reservationForm,
+    setReservationForm,
+    createReservation
   } = useWorkspace();
 
   const [selectedTableId, setSelectedTableId] = useState("");
   const [openMenuTableId, setOpenMenuTableId] = useState("");
   const [detailReservationId, setDetailReservationId] = useState("");
   const [reassignReservationId, setReassignReservationId] = useState("");
+  const [bookingMode, setBookingMode] = useState(false);
+  const [bookingTableIds, setBookingTableIds] = useState<string[]>([]);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createError, setCreateError] = useState("");
   const layoutWrapRef = useRef<HTMLDivElement>(null);
   const layoutScale = 1;
 
@@ -159,6 +167,31 @@ export function PanelPage() {
   const reassignReservation = reassignReservationId
     ? reservations.find((reservation) => reservation.id === reassignReservationId) || null
     : null;
+  const compatibleIds = useMemo(() => {
+    const graph = new Map<string, Set<string>>();
+    roomDetail?.combinations.forEach((link) => {
+      if (!graph.has(link.parentTableId)) graph.set(link.parentTableId, new Set());
+      if (!graph.has(link.childTableId)) graph.set(link.childTableId, new Set());
+      graph.get(link.parentTableId)!.add(link.childTableId);
+      graph.get(link.childTableId)!.add(link.parentTableId);
+    });
+    return graph;
+  }, [roomDetail]);
+
+  function startReservation(tableIds: string[]) {
+    setReservationForm((current) => ({ ...current, selectedTableIds: tableIds }));
+    setBookingTableIds([]);
+    setBookingMode(false);
+    setCreateError("");
+    setCreateOpen(true);
+  }
+
+  async function submitPanelReservation() {
+    setCreateError("");
+    if (!reservationForm.fullName.trim() || !reservationForm.phone.trim()) return setCreateError("Completa nombre y teléfono para crear la reserva.");
+    if (!Number.isInteger(Number(reservationForm.partySize)) || Number(reservationForm.partySize) < 1) return setCreateError("Ingresá una cantidad válida de comensales.");
+    try { await createReservation(); setCreateOpen(false); } catch (error) { setCreateError(error instanceof Error ? error.message : "No se pudo crear la reserva."); }
+  }
 
   return (
     <WorkspaceShell
@@ -187,6 +220,9 @@ export function PanelPage() {
                 </option>
               ))}
             </FoodieSelect>
+          </div>
+          <div className="flex gap-2">
+            {bookingMode ? <><button type="button" onClick={() => { setBookingMode(false); setBookingTableIds([]); }} className="rounded-full border border-brand-line px-4 py-3 text-sm font-medium text-brand-ink">Cancelar</button><button type="button" disabled={!bookingTableIds.length} onClick={() => startReservation(bookingTableIds)} className="rounded-full bg-brand-orange px-4 py-3 text-sm font-medium text-white disabled:opacity-50">Continuar ({bookingTableIds.length})</button></> : <button type="button" disabled={isSelectedRoomBlocked} onClick={() => setBookingMode(true)} className="rounded-full bg-brand-orange px-4 py-3 text-sm font-medium text-white disabled:opacity-50">Reservar mesas</button>}
           </div>
 
           <div className="min-w-[180px] flex-1">
@@ -262,11 +298,13 @@ export function PanelPage() {
                   const status = state?.status || "free";
                   const reservation = reservationByTableId.get(table.id) || null;
                   const canReassign = Boolean(reservation && ["pending", "confirmed"].includes(reservation.status) && !isSelectedRoomBlocked);
+                  const isBookingCandidate = bookingMode && status === "free" && table.isReservable && !isSelectedRoomBlocked;
+                  const canAddToBooking = !bookingTableIds.length || bookingTableIds.includes(table.id) || bookingTableIds.some((id) => compatibleIds.get(id)?.has(table.id));
 
                   return (
                     <div
                       key={table.id}
-                      className="absolute"
+                      className={`absolute ${openMenuTableId === table.id ? "z-40" : "z-0"}`}
                       style={{
                         left: table.x,
                         top: table.y,
@@ -278,13 +316,14 @@ export function PanelPage() {
                     >
                       <button
                         type="button"
-                        disabled={isSelectedRoomBlocked}
+                        disabled={isSelectedRoomBlocked || (bookingMode && (!isBookingCandidate || !canAddToBooking))}
                         onClick={() => {
+                          if (bookingMode) { setBookingTableIds((current) => current.includes(table.id) ? current.filter((id) => id !== table.id) : [...current, table.id]); return; }
                           setSelectedTableId(table.id);
                           setOpenMenuTableId("");
                         }}
                         className={`relative h-full w-full border-2 text-center shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${shapeClass(table.shape)} ${tableStateStyle(status)} ${
-                          selectedTableId === table.id ? "ring-4 ring-[#FFB088]" : ""
+                          selectedTableId === table.id ? "ring-4 ring-[#FFB088]" : bookingTableIds.includes(table.id) ? "ring-4 ring-[#6C63FF]" : ""
                         }`}
                       >
                         <span
@@ -314,6 +353,9 @@ export function PanelPage() {
 
                         {openMenuTableId === table.id ? (
                           <div className="absolute left-0 top-8 flex flex-col gap-2 rounded-[18px] border border-brand-line bg-white p-2 shadow-[0_12px_24px_rgba(31,31,33,0.12)]">
+                            {status === "free" && table.isReservable && !isSelectedRoomBlocked ? (
+                              <button type="button" onClick={() => { setOpenMenuTableId(""); startReservation([table.id]); }} className="flex h-8 w-8 items-center justify-center rounded-full border border-brand-orange text-sm font-bold text-brand-orange hover:bg-[#FFF4ED]" aria-label="Crear reserva" title="Crear reserva">+</button>
+                            ) : null}
                             <button
                               type="button"
                               disabled={isSelectedRoomBlocked}
@@ -391,6 +433,23 @@ export function PanelPage() {
       </section>
 
       <ReservationTableReassignModal reservation={reassignReservation} onClose={() => setReassignReservationId("")} />
+
+      <AppModal
+        open={createOpen}
+        onClose={() => { setCreateError(""); setCreateOpen(false); }}
+        title="Nueva reserva"
+        description="Reserva las mesas seleccionadas en el plano. La disponibilidad se valida al confirmar."
+        footer={<><button type="button" onClick={() => setCreateOpen(false)} className="flex-1 rounded-full border border-brand-line px-4 py-3 text-sm font-medium text-brand-ink">Cancelar</button><button type="button" onClick={() => void submitPanelReservation()} className="flex-1 rounded-full bg-brand-orange px-4 py-3 text-sm font-medium text-white">Crear reserva</button></>}
+      >
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="space-y-2 text-sm text-brand-ink"><span className="font-medium">Nombre del cliente</span><input value={reservationForm.fullName} onChange={(event) => setReservationForm((current) => ({ ...current, fullName: event.target.value }))} className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange" /></label>
+          <label className="space-y-2 text-sm text-brand-ink"><span className="font-medium">Teléfono</span><input value={reservationForm.phone} onChange={(event) => setReservationForm((current) => ({ ...current, phone: event.target.value }))} className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange" /></label>
+          <label className="space-y-2 text-sm text-brand-ink"><span className="font-medium">Comensales</span><input type="number" min={1} value={reservationForm.partySize} onChange={(event) => setReservationForm((current) => ({ ...current, partySize: event.target.value }))} className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange" /></label>
+          <label className="space-y-2 text-sm text-brand-ink"><span className="font-medium">Horario</span><input type="time" value={reservationForm.serviceTime} onChange={(event) => setReservationForm((current) => ({ ...current, serviceTime: event.target.value }))} className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange" /></label>
+          <div className="rounded-2xl border border-brand-orange bg-[#FFF4ED] px-4 py-3 text-sm text-brand-ink md:col-span-2"><span className="font-semibold">Mesas seleccionadas: </span>{reservationForm.selectedTableIds.length ? roomDetail?.tables.filter((table) => reservationForm.selectedTableIds.includes(table.id)).map((table) => table.label).join(" + ") : "Asignación automática"}</div>
+          {createError ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 md:col-span-2">{createError}</p> : null}
+        </div>
+      </AppModal>
 
       {detailReservation ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(31,31,33,0.42)] p-6">

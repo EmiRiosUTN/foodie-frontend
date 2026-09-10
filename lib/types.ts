@@ -275,6 +275,7 @@ export type ReservationTableOption = {
   tableIds: string[];
   tableLabels: string[];
   seats: number;
+  combination?: boolean;
 };
 
 export type Customer = {
@@ -337,6 +338,7 @@ export type CreateReservationForm = {
   preferredTags: string;
   birthday: string;
   notes: string;
+  selectedTableIds: string[];
 };
 
 export const initialReservationForm: CreateReservationForm = {
@@ -349,4 +351,5 @@ export const initialReservationForm: CreateReservationForm = {
   preferredTags: "",
   birthday: "",
   notes: ""
+  , selectedTableIds: []
 };

@@ -87,6 +87,7 @@ type WorkspaceContextValue = {
   moveReservation: (reservationId: string, action: "check-in" | "release") => Promise<void>;
   deleteReservation: (reservationId: string) => Promise<void>;
   loadReservationTableOptions: (reservationId: string) => Promise<ReservationTableOption[]>;
+  loadAvailableReservationTableOptions: (input: { branchId: string; roomId: string; partySize: number; serviceDate: string; serviceTime: string; preferredZone?: string }) => Promise<ReservationTableOption[]>;
   reassignReservationTables: (reservationId: string, tableIds: string[]) => Promise<void>;
   setTableState: (tableId: string, status: ServiceState["status"]) => Promise<void>;
   createCustomer: (input: {
@@ -552,6 +553,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
           preferredTags: reservationForm.preferredTags.split(",").map((item) => item.trim()).filter(Boolean),
           birthday: reservationForm.birthday || undefined,
           notes: reservationForm.notes || undefined
+          , tableIds: reservationForm.selectedTableIds.length ? reservationForm.selectedTableIds : undefined
         })
       });
       setReservationForm(initialReservationForm);
@@ -760,6 +762,18 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   async function loadReservationTableOptions(reservationId: string) {
     return api<ReservationTableOption[]>(`/restaurant/reservations/${reservationId}/table-options`);
+  }
+
+  async function loadAvailableReservationTableOptions(input: { branchId: string; roomId: string; partySize: number; serviceDate: string; serviceTime: string; preferredZone?: string }) {
+    const query = new URLSearchParams({
+      branchId: input.branchId,
+      roomId: input.roomId,
+      partySize: String(input.partySize),
+      serviceDate: input.serviceDate,
+      serviceTime: input.serviceTime,
+      ...(input.preferredZone ? { preferredZone: input.preferredZone } : {})
+    });
+    return api<ReservationTableOption[]>(`/restaurant/reservations/available-table-options?${query.toString()}`);
   }
 
   async function reassignReservationTables(reservationId: string, tableIds: string[]) {
@@ -1033,6 +1047,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       moveReservation,
       deleteReservation,
       loadReservationTableOptions,
+      loadAvailableReservationTableOptions,
       reassignReservationTables,
       setTableState,
       createCustomer,
