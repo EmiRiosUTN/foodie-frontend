@@ -191,7 +191,7 @@ export function PanelPage() {
       title="Panel"
       description=""
     >
-      <section className="overflow-hidden rounded-[30px] border border-brand-line bg-white">
+      <section className="relative overflow-visible rounded-[30px] border border-brand-line bg-white">
         <div className="flex flex-wrap items-end gap-4 border-b border-brand-line px-5 py-4">
           <div className="min-w-[180px] flex-1">
             <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-neutral-400">Sucursal</label>
@@ -259,19 +259,17 @@ export function PanelPage() {
             </FoodieSelect>
           </div>
 
-          <div className="ml-auto flex flex-col items-end gap-2">
+          <div className="relative ml-auto flex gap-2">
             {bookingMode ? (
               <>
-                <div className="max-w-[360px] rounded-2xl border border-brand-orange bg-white px-4 py-3 text-right shadow-[0_10px_24px_rgba(31,31,33,0.10)]">
+                <div className="absolute bottom-[calc(100%+10px)] right-0 z-50 w-[min(360px,calc(100vw-40px))] rounded-2xl border border-brand-orange bg-white px-4 py-3 text-right shadow-[0_10px_24px_rgba(31,31,33,0.10)]">
                   <p className="text-sm font-bold text-brand-ink">Seleccioná las mesas para la reserva</p>
                   <p className="mt-1 text-xs text-neutral-500">{bookingTableIds.length ? `Mesas: ${bookingTables.map((table) => table.label).join(" + ")}` : "Todavía no seleccionaste mesas."}</p>
                   {bookingTableIds.length ? <p className="mt-1 text-xs font-semibold text-brand-ink">Capacidad total: {bookingCapacity} pax</p> : null}
                   <p className="mt-2 text-xs font-semibold text-brand-orange">Cuando termines, tocá “Continuar reserva” debajo.</p>
                 </div>
-                <div className="flex gap-2">
-                  <button type="button" onClick={() => { setBookingMode(false); setBookingTableIds([]); }} className="rounded-full border border-brand-line px-4 py-3 text-sm font-medium text-brand-ink">Cancelar</button>
-                  <button type="button" disabled={!bookingTableIds.length} onClick={() => startReservation(bookingTableIds)} className="rounded-full bg-brand-orange px-4 py-3 text-sm font-medium text-white disabled:opacity-50">Continuar reserva</button>
-                </div>
+                <button type="button" onClick={() => { setBookingMode(false); setBookingTableIds([]); }} className="rounded-full border border-brand-line px-4 py-3 text-sm font-medium text-brand-ink">Cancelar</button>
+                <button type="button" disabled={!bookingTableIds.length} onClick={() => startReservation(bookingTableIds)} className="rounded-full bg-brand-orange px-4 py-3 text-sm font-medium text-white disabled:opacity-50">Continuar reserva</button>
               </>
             ) : <button type="button" disabled={isSelectedRoomBlocked} onClick={() => { setSelectedTableId(""); setOpenMenuTableId(""); setBookingMode(true); }} className="rounded-full bg-brand-orange px-4 py-3 text-sm font-medium text-white disabled:opacity-50">Nueva reserva</button>}
           </div>
