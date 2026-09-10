@@ -168,21 +168,11 @@ export function PanelPage() {
   const reassignReservation = reassignReservationId
     ? reservations.find((reservation) => reservation.id === reassignReservationId) || null
     : null;
-  const compatibleIds = useMemo(() => {
-    const graph = new Map<string, Set<string>>();
-    roomDetail?.combinations.forEach((link) => {
-      if (!graph.has(link.parentTableId)) graph.set(link.parentTableId, new Set());
-      if (!graph.has(link.childTableId)) graph.set(link.childTableId, new Set());
-      graph.get(link.parentTableId)!.add(link.childTableId);
-      graph.get(link.childTableId)!.add(link.parentTableId);
-    });
-    return graph;
-  }, [roomDetail]);
   const bookingTables = roomDetail?.tables.filter((table) => bookingTableIds.includes(table.id)) || [];
   const bookingCapacity = totalTableCapacity(bookingTables);
 
   function startReservation(tableIds: string[]) {
-    setReservationForm((current) => ({ ...current, selectedTableIds: tableIds }));
+    setReservationForm((current) => ({ ...current, selectedTableIds: tableIds, tableSelectionMode: "manual" }));
     setBookingTableIds([]);
     setBookingMode(false);
     setCreateError("");
@@ -214,6 +204,8 @@ export function PanelPage() {
                 setSelectedRoomId(firstRoom);
                 setSelectedTableId("");
                 setOpenMenuTableId("");
+                setBookingTableIds([]);
+                setBookingMode(false);
               }}
               className="font-medium"
             >
@@ -224,10 +216,6 @@ export function PanelPage() {
               ))}
             </FoodieSelect>
           </div>
-          <div className="flex gap-2">
-            {bookingMode ? <><button type="button" onClick={() => { setBookingMode(false); setBookingTableIds([]); }} className="rounded-full border border-brand-line px-4 py-3 text-sm font-medium text-brand-ink">Cancelar</button><button type="button" disabled={!bookingTableIds.length} onClick={() => startReservation(bookingTableIds)} className="rounded-full bg-brand-orange px-4 py-3 text-sm font-medium text-white disabled:opacity-50">Continuar ({bookingTableIds.length} · {bookingCapacity} pax)</button></> : <button type="button" disabled={isSelectedRoomBlocked} onClick={() => setBookingMode(true)} className="rounded-full bg-brand-orange px-4 py-3 text-sm font-medium text-white disabled:opacity-50">Reservar mesas</button>}
-          </div>
-
           <div className="min-w-[180px] flex-1">
             <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-neutral-400">Salon</label>
             <FoodieSelect
@@ -236,6 +224,8 @@ export function PanelPage() {
                 setSelectedRoomId(event.target.value);
                 setSelectedTableId("");
                 setOpenMenuTableId("");
+                setBookingTableIds([]);
+                setBookingMode(false);
               }}
               className="font-medium"
             >
@@ -252,7 +242,7 @@ export function PanelPage() {
             <input
               type="date"
               value={selectedDate}
-              onChange={(event) => setSelectedDate(event.target.value)}
+              onChange={(event) => { setSelectedDate(event.target.value); setBookingTableIds([]); }}
               className="w-full rounded-2xl border border-brand-line px-4 py-3 text-sm outline-none focus:border-brand-orange"
             />
           </div>
@@ -261,12 +251,16 @@ export function PanelPage() {
             <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-neutral-400">Turno</label>
             <FoodieSelect
               value={selectedTurn}
-              onChange={(event) => setSelectedTurn(event.target.value as "mediodia" | "noche")}
+              onChange={(event) => { setSelectedTurn(event.target.value as "mediodia" | "noche"); setBookingTableIds([]); }}
               className="font-medium"
             >
               <option value="mediodia">Mediodia</option>
               <option value="noche">Noche</option>
             </FoodieSelect>
+          </div>
+
+          <div className="ml-auto flex gap-2">
+            {bookingMode ? <><button type="button" onClick={() => { setBookingMode(false); setBookingTableIds([]); }} className="rounded-full border border-brand-line px-4 py-3 text-sm font-medium text-brand-ink">Cancelar</button><button type="button" disabled={!bookingTableIds.length} onClick={() => startReservation(bookingTableIds)} className="rounded-full bg-brand-orange px-4 py-3 text-sm font-medium text-white disabled:opacity-50">Continuar reserva ({bookingTableIds.length} · {bookingCapacity} pax)</button></> : <button type="button" disabled={isSelectedRoomBlocked} onClick={() => setBookingMode(true)} className="rounded-full bg-brand-orange px-4 py-3 text-sm font-medium text-white disabled:opacity-50">Nueva reserva</button>}
           </div>
         </div>
 
@@ -289,6 +283,15 @@ export function PanelPage() {
                   </div>
                 </div>
               ) : null}
+              {bookingMode ? (
+                <div className="pointer-events-none sticky top-3 z-30 flex justify-center px-3">
+                  <div className="rounded-2xl border border-brand-orange bg-white/95 px-5 py-3 text-center shadow-lg backdrop-blur-sm">
+                    <p className="text-sm font-bold text-brand-ink">Seleccioná las mesas para la reserva</p>
+                    <p className="mt-1 text-xs text-neutral-500">{bookingTableIds.length ? `${bookingTableIds.length} mesas elegidas · Capacidad acumulada: ${bookingCapacity} pax` : "Todavía no seleccionaste mesas."}</p>
+                    <p className="mt-2 text-xs font-semibold text-brand-orange">Cuando termines, tocá “Continuar reserva” arriba a la derecha.</p>
+                  </div>
+                </div>
+              ) : null}
               <div className="relative shrink-0" style={{ width: CANVAS_WIDTH * layoutScale, minWidth: CANVAS_WIDTH * layoutScale, height: CANVAS_HEIGHT * layoutScale }}>
                 <div
                   className="relative origin-top-left"
@@ -302,7 +305,6 @@ export function PanelPage() {
                   const reservation = reservationByTableId.get(table.id) || null;
                   const canReassign = Boolean(reservation && ["pending", "confirmed"].includes(reservation.status) && !isSelectedRoomBlocked);
                   const isBookingCandidate = bookingMode && status === "free" && table.isReservable && !isSelectedRoomBlocked;
-                  const canAddToBooking = !bookingTableIds.length || bookingTableIds.includes(table.id) || bookingTableIds.some((id) => compatibleIds.get(id)?.has(table.id));
 
                   return (
                     <div
@@ -319,7 +321,7 @@ export function PanelPage() {
                     >
                       <button
                         type="button"
-                        disabled={isSelectedRoomBlocked || (bookingMode && (!isBookingCandidate || !canAddToBooking))}
+                        disabled={isSelectedRoomBlocked || (bookingMode && !isBookingCandidate)}
                         onClick={() => {
                           if (bookingMode) { setBookingTableIds((current) => current.includes(table.id) ? current.filter((id) => id !== table.id) : [...current, table.id]); return; }
                           setSelectedTableId(table.id);

@@ -9,6 +9,7 @@ import type {
   CreateReservationForm,
   Customer,
   CustomerDetail,
+  ManualReservationTableOption,
   PlatformRestaurantDetail,
   PlatformRestaurantSummary,
   Reservation,
@@ -88,6 +89,7 @@ type WorkspaceContextValue = {
   deleteReservation: (reservationId: string) => Promise<void>;
   loadReservationTableOptions: (reservationId: string) => Promise<ReservationTableOption[]>;
   loadAvailableReservationTableOptions: (input: { branchId: string; roomId: string; partySize: number; serviceDate: string; serviceTime: string; preferredZone?: string }) => Promise<ReservationTableOption[]>;
+  loadAvailableManualReservationTables: (input: { branchId: string; roomId: string; serviceDate: string; serviceTime: string; preferredZone?: string }) => Promise<ManualReservationTableOption[]>;
   reassignReservationTables: (reservationId: string, tableIds: string[]) => Promise<void>;
   setTableState: (tableId: string, status: ServiceState["status"]) => Promise<void>;
   createCustomer: (input: {
@@ -552,8 +554,9 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
           preferredZone: reservationForm.preferredZone || undefined,
           preferredTags: reservationForm.preferredTags.split(",").map((item) => item.trim()).filter(Boolean),
           birthday: reservationForm.birthday || undefined,
-          notes: reservationForm.notes || undefined
-          , tableIds: reservationForm.selectedTableIds.length ? reservationForm.selectedTableIds : undefined
+          notes: reservationForm.notes || undefined,
+          tableIds: reservationForm.selectedTableIds.length ? reservationForm.selectedTableIds : undefined,
+          manualTableSelection: reservationForm.tableSelectionMode === "manual" || undefined
         })
       });
       setReservationForm(initialReservationForm);
@@ -774,6 +777,17 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       ...(input.preferredZone ? { preferredZone: input.preferredZone } : {})
     });
     return api<ReservationTableOption[]>(`/restaurant/reservations/available-table-options?${query.toString()}`);
+  }
+
+  async function loadAvailableManualReservationTables(input: { branchId: string; roomId: string; serviceDate: string; serviceTime: string; preferredZone?: string }) {
+    const query = new URLSearchParams({
+      branchId: input.branchId,
+      roomId: input.roomId,
+      serviceDate: input.serviceDate,
+      serviceTime: input.serviceTime,
+      ...(input.preferredZone ? { preferredZone: input.preferredZone } : {})
+    });
+    return api<ManualReservationTableOption[]>(`/restaurant/reservations/available-manual-tables?${query.toString()}`);
   }
 
   async function reassignReservationTables(reservationId: string, tableIds: string[]) {
@@ -1048,6 +1062,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       deleteReservation,
       loadReservationTableOptions,
       loadAvailableReservationTableOptions,
+      loadAvailableManualReservationTables,
       reassignReservationTables,
       setTableState,
       createCustomer,

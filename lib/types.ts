@@ -339,6 +339,7 @@ export type CreateReservationForm = {
   birthday: string;
   notes: string;
   selectedTableIds: string[];
+  tableSelectionMode: "automatic" | "configured" | "manual";
 };
 
 export const initialReservationForm: CreateReservationForm = {
@@ -350,6 +351,13 @@ export const initialReservationForm: CreateReservationForm = {
   preferredZone: "",
   preferredTags: "",
   birthday: "",
-  notes: ""
-  , selectedTableIds: []
+  notes: "",
+  selectedTableIds: [],
+  tableSelectionMode: "automatic"
+};
+
+export type ManualReservationTableOption = {
+  id: string;
+  label: string;
+  seats: number;
 };

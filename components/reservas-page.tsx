@@ -2,7 +2,7 @@
 
 import { CalendarDays, CheckCircle2, Clock3, Download, Plus, Printer, Search, Trash2, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import type { Reservation } from "../lib/types";
+import type { ManualReservationTableOption, Reservation } from "../lib/types";
 import { AppModal } from "./app-modal";
 import { ConfirmDialog } from "./confirm-dialog";
 import { FoodieSelect } from "./foodie-select";
@@ -51,13 +51,15 @@ export function ReservasPage() {
     setSelectedTurn,
     selectedBranchId,
     loadReservationHistory,
-    loadAvailableReservationTableOptions
+    loadAvailableReservationTableOptions,
+    loadAvailableManualReservationTables
   } = useWorkspace();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [reassignReservation, setReassignReservation] = useState<Reservation | null>(null);
   const [formError, setFormError] = useState("");
   const [tableOptions, setTableOptions] = useState<import("../lib/types").ReservationTableOption[]>([]);
+  const [manualTableOptions, setManualTableOptions] = useState<ManualReservationTableOption[]>([]);
   const [tableOptionsLoading, setTableOptionsLoading] = useState(false);
   const [activeView, setActiveView] = useState<"turno" | "historico">("turno");
   const [historyFilters, setHistoryFilters] = useState({
@@ -75,38 +77,57 @@ export function ReservasPage() {
   const zonePills = roomDetail?.zones || [];
   const selectedBranch = bootstrap?.branches.find((branch) => branch.id === selectedBranchId);
   const canDeleteReservations = ["restaurant_owner", "restaurant_manager"].includes(currentUser?.role || "");
+  const manualSelectedTables = manualTableOptions.filter((table) => reservationForm.selectedTableIds.includes(table.id));
+  const manualSelectedCapacity = totalTableCapacity(manualSelectedTables);
 
   useEffect(() => {
     if (!createOpen || !selectedBranchId || !selectedRoomId || !selectedDate || !reservationForm.serviceTime) {
       setTableOptions([]);
+      setManualTableOptions([]);
       return;
     }
     const partySize = Number(reservationForm.partySize);
     if (!Number.isInteger(partySize) || partySize < 1) {
       setTableOptions([]);
+      setManualTableOptions([]);
       return;
     }
     let active = true;
     setTableOptionsLoading(true);
-    loadAvailableReservationTableOptions({
-      branchId: selectedBranchId,
-      roomId: selectedRoomId,
-      partySize,
-      serviceDate: selectedDate,
-      serviceTime: reservationForm.serviceTime,
-      preferredZone: reservationForm.preferredZone || undefined
-    })
-      .then((options) => {
+    Promise.all([
+      loadAvailableReservationTableOptions({
+        branchId: selectedBranchId,
+        roomId: selectedRoomId,
+        partySize,
+        serviceDate: selectedDate,
+        serviceTime: reservationForm.serviceTime,
+        preferredZone: reservationForm.preferredZone || undefined
+      }),
+      loadAvailableManualReservationTables({
+        branchId: selectedBranchId,
+        roomId: selectedRoomId,
+        serviceDate: selectedDate,
+        serviceTime: reservationForm.serviceTime,
+        preferredZone: reservationForm.preferredZone || undefined
+      })
+    ])
+      .then(([options, manualTables]) => {
         if (!active) return;
         setTableOptions(options);
-        setReservationForm((current) => current.selectedTableIds.length && options.some((option) => option.tableIds.join("|") === current.selectedTableIds.join("|"))
-          ? current
-          : { ...current, selectedTableIds: [] });
+        setManualTableOptions(manualTables);
+        setReservationForm((current) => {
+          const selectionIsAvailable = current.tableSelectionMode === "manual"
+            ? current.selectedTableIds.length > 0 && current.selectedTableIds.every((id) => manualTables.some((table) => table.id === id))
+            : current.tableSelectionMode === "configured"
+              ? options.some((option) => option.tableIds.join("|") === current.selectedTableIds.join("|"))
+              : !current.selectedTableIds.length;
+          return selectionIsAvailable ? current : { ...current, selectedTableIds: [] };
+        });
       })
-      .catch(() => { if (active) setTableOptions([]); })
+      .catch(() => { if (active) { setTableOptions([]); setManualTableOptions([]); } })
       .finally(() => { if (active) setTableOptionsLoading(false); });
     return () => { active = false; };
-  }, [createOpen, selectedBranchId, selectedRoomId, selectedDate, reservationForm.partySize, reservationForm.serviceTime, reservationForm.preferredZone, loadAvailableReservationTableOptions, setReservationForm]);
+  }, [createOpen, selectedBranchId, selectedRoomId, selectedDate, reservationForm.partySize, reservationForm.serviceTime, reservationForm.preferredZone, loadAvailableReservationTableOptions, loadAvailableManualReservationTables, setReservationForm]);
 
   const sortedReservations = useMemo(
     () =>
@@ -132,6 +153,10 @@ export function ReservasPage() {
     }
     if (!reservationForm.serviceTime) {
       setFormError("Ingresa el horario de la reserva.");
+      return;
+    }
+    if (reservationForm.tableSelectionMode === "manual" && !reservationForm.selectedTableIds.length) {
+      setFormError("Elegí al menos una mesa libre o volvé a la asignación automática.");
       return;
     }
 
@@ -616,7 +641,7 @@ export function ReservasPage() {
               step={1}
               inputMode="numeric"
               value={reservationForm.partySize}
-              onChange={(event) => setReservationForm((current) => ({ ...current, partySize: event.target.value }))}
+              onChange={(event) => setReservationForm((current) => ({ ...current, partySize: event.target.value, selectedTableIds: [] }))}
               placeholder="Ej: 4"
               className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
             />
@@ -626,7 +651,7 @@ export function ReservasPage() {
             <input
               type="date"
               value={selectedDate}
-              onChange={(event) => setSelectedDate(event.target.value)}
+              onChange={(event) => { setSelectedDate(event.target.value); setReservationForm((current) => ({ ...current, selectedTableIds: [] })); }}
               className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
             />
           </label>
@@ -635,7 +660,7 @@ export function ReservasPage() {
             <input
               type="time"
               value={reservationForm.serviceTime}
-              onChange={(event) => setReservationForm((current) => ({ ...current, serviceTime: event.target.value }))}
+              onChange={(event) => setReservationForm((current) => ({ ...current, serviceTime: event.target.value, selectedTableIds: [] }))}
               className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
             />
           </label>
@@ -645,7 +670,7 @@ export function ReservasPage() {
               value={selectedRoomId}
               onChange={(event) => {
                 setSelectedRoomId(event.target.value);
-                setReservationForm((current) => ({ ...current, preferredZone: "" }));
+                setReservationForm((current) => ({ ...current, preferredZone: "", selectedTableIds: [] }));
               }}
               className="font-medium"
             >
@@ -657,26 +682,70 @@ export function ReservasPage() {
             </FoodieSelect>
           </label>
           <div className="space-y-2 text-sm text-brand-ink md:col-span-2">
-            <span className="font-medium">Mesa o combinación (opcional)</span>
-            <FoodieSelect
-              value={reservationForm.selectedTableIds.join("|")}
-              onChange={(event) => setReservationForm((current) => ({
-                ...current,
-                selectedTableIds: event.target.value ? event.target.value.split("|") : []
-              }))}
-              className="font-medium"
-              disabled={tableOptionsLoading}
-            >
-              <option value="">Asignar automáticamente</option>
-              {tableOptions.map((option) => (
-                <option key={option.tableIds.join("|")} value={option.tableIds.join("|")}>
-                  {option.tableLabels.join(" + ")} · {option.seats} pax
-                </option>
+            <span className="font-medium">Asignación de mesas</span>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {[
+                ["automatic", "Automática", "Foodie elige la mejor opción"],
+                ["configured", "Combinación configurada", "Usá mesas o cadenas del salón"],
+                ["manual", "Selección manual", "Elegí cualquier mesa libre"]
+              ].map(([mode, title, description]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setReservationForm((current) => ({ ...current, tableSelectionMode: mode as "automatic" | "configured" | "manual", selectedTableIds: [] }))}
+                  className={`rounded-2xl border px-3 py-3 text-left transition ${reservationForm.tableSelectionMode === mode ? "border-brand-orange bg-[#FFF4ED]" : "border-brand-line bg-white hover:border-brand-orange"}`}
+                >
+                  <span className="block text-sm font-semibold text-brand-ink">{title}</span>
+                  <span className="mt-1 block text-xs text-neutral-500">{description}</span>
+                </button>
               ))}
-            </FoodieSelect>
-            <p className="text-xs text-neutral-500">
-              {tableOptionsLoading ? "Buscando mesas disponibles..." : tableOptions.length ? "La selección manual se respeta al crear la reserva." : "No hay opciones disponibles para estos datos."}
-            </p>
+            </div>
+
+            {reservationForm.tableSelectionMode === "configured" ? (
+              <>
+                <FoodieSelect
+                  value={reservationForm.selectedTableIds.join("|")}
+                  onChange={(event) => setReservationForm((current) => ({
+                    ...current,
+                    selectedTableIds: event.target.value ? event.target.value.split("|") : []
+                  }))}
+                  className="font-medium"
+                  disabled={tableOptionsLoading}
+                >
+                  <option value="">Elegí una mesa o combinación</option>
+                  {tableOptions.map((option) => (
+                    <option key={option.tableIds.join("|")} value={option.tableIds.join("|")}>
+                      {option.tableLabels.join(" + ")} · {option.seats} pax
+                    </option>
+                  ))}
+                </FoodieSelect>
+                <p className="text-xs text-neutral-500">{tableOptionsLoading ? "Buscando mesas disponibles..." : tableOptions.length ? "Las combinaciones respetan los vínculos configurados del salón." : "No hay opciones configuradas disponibles para estos datos."}</p>
+              </>
+            ) : null}
+
+            {reservationForm.tableSelectionMode === "manual" ? (
+              <div className="rounded-2xl border border-brand-orange bg-[#FFF9F5] p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs text-neutral-600">Podés combinar mesas libres aunque no tengan un vínculo configurado. La disponibilidad se valida al guardar.</p>
+                  <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-brand-orange">{manualSelectedTables.length} mesas · {manualSelectedCapacity} pax</span>
+                </div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {manualTableOptions.map((table) => {
+                    const selected = reservationForm.selectedTableIds.includes(table.id);
+                    return (
+                      <button key={table.id} type="button" onClick={() => setReservationForm((current) => ({
+                        ...current,
+                        selectedTableIds: selected ? current.selectedTableIds.filter((id) => id !== table.id) : [...current.selectedTableIds, table.id]
+                      }))} className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-left transition ${selected ? "border-brand-orange bg-white" : "border-[#F0D8C9] bg-white/70 hover:border-brand-orange"}`}>
+                        <span className="font-semibold text-brand-ink">Mesa {table.label}</span>
+                        <span className="text-xs font-medium text-neutral-500">{table.seats} pax</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {!tableOptionsLoading && !manualTableOptions.length ? <p className="mt-3 text-xs text-neutral-500">No hay mesas libres para estos datos.</p> : null}
+              </div>
+            ) : null}
           </div>
           <label className="space-y-2 text-sm text-brand-ink md:col-span-2">
             <span className="font-medium">Cumpleanos</span>
@@ -691,7 +760,7 @@ export function ReservasPage() {
             <span className="font-medium">Preferencia de zona</span>
             <FoodieSelect
               value={reservationForm.preferredZone}
-              onChange={(event) => setReservationForm((current) => ({ ...current, preferredZone: event.target.value }))}
+              onChange={(event) => setReservationForm((current) => ({ ...current, preferredZone: event.target.value, selectedTableIds: [] }))}
               className="font-medium"
             >
               <option value="">Sin preferencia de zona</option>
