@@ -1800,7 +1800,7 @@ export function SalonPage() {
                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500">Vínculos directos</p>
                     <span className="rounded-full bg-[#FFF0E7] px-2.5 py-1 text-xs font-semibold text-[#B65221]">{activeCombinationKeys.length}</span>
                   </div>
-                  <div className="mt-3 max-h-[22vh] space-y-2 overflow-y-auto pr-1">
+                  <div className="mt-3 max-h-[30vh] space-y-2 overflow-y-auto pr-1">
                     {activeCombinationKeys.length ? (
                       activeCombinationKeys.map((key) => {
                         const [leftId, rightId] = key.split("__");
