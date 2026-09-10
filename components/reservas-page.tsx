@@ -9,7 +9,7 @@ import { FoodieSelect } from "./foodie-select";
 import { ReservationTableReassignModal } from "./reservation-table-reassign-modal";
 import { WorkspaceShell } from "./workspace-shell";
 import { useWorkspace } from "./workspace-provider";
-import { totalTableCapacity } from "../lib/table-capacity";
+import { tableCapacity, totalTableCapacity } from "../lib/table-capacity";
 
 function csvEscape(value: unknown) {
   const text = String(value ?? "");
@@ -60,7 +60,11 @@ export function ReservasPage() {
   const [formError, setFormError] = useState("");
   const [tableOptions, setTableOptions] = useState<import("../lib/types").ReservationTableOption[]>([]);
   const [manualTableOptions, setManualTableOptions] = useState<ManualReservationTableOption[]>([]);
-  const [tableOptionsLoading, setTableOptionsLoading] = useState(false);
+  const [configuredOptionsLoading, setConfiguredOptionsLoading] = useState(false);
+  const [manualTablesLoading, setManualTablesLoading] = useState(false);
+  const [configuredOptionsError, setConfiguredOptionsError] = useState("");
+  const [manualTablesError, setManualTablesError] = useState("");
+  const [tableOptionsRetry, setTableOptionsRetry] = useState(0);
   const [activeView, setActiveView] = useState<"turno" | "historico">("turno");
   const [historyFilters, setHistoryFilters] = useState({
     dateFrom: selectedDate,
@@ -79,13 +83,34 @@ export function ReservasPage() {
   const canDeleteReservations = ["restaurant_owner", "restaurant_manager"].includes(currentUser?.role || "");
   const manualSelectedTables = manualTableOptions.filter((table) => reservationForm.selectedTableIds.includes(table.id));
   const manualSelectedCapacity = totalTableCapacity(manualSelectedTables);
+  const manualTableOptionsById = useMemo(() => new Map(manualTableOptions.map((table) => [table.id, table])), [manualTableOptions]);
+  const manualTableCards = useMemo(
+    () => [...(roomDetail?.tables || [])]
+      .sort((left, right) => left.label.localeCompare(right.label, "es", { numeric: true }))
+      .map((table) => {
+        const availableOption = manualTableOptionsById.get(table.id);
+        return {
+          id: table.id,
+          label: table.label,
+          seats: availableOption?.seats ?? tableCapacity(table),
+          isAvailable: Boolean(availableOption)
+        };
+      }),
+    [manualTableOptionsById, roomDetail?.tables]
+  );
 
   useEffect(() => {
-    if (!createOpen || !selectedBranchId || !selectedRoomId || !selectedDate || !reservationForm.serviceTime) {
+    const selectionMode = reservationForm.tableSelectionMode;
+    if (!createOpen || selectionMode === "automatic") {
       setTableOptions([]);
       setManualTableOptions([]);
+      setConfiguredOptionsLoading(false);
+      setManualTablesLoading(false);
+      setConfiguredOptionsError("");
+      setManualTablesError("");
       return;
     }
+    if (!selectedBranchId || !selectedRoomId || !selectedDate || !reservationForm.serviceTime) return;
     const partySize = Number(reservationForm.partySize);
     if (!Number.isInteger(partySize) || partySize < 1) {
       setTableOptions([]);
@@ -93,8 +118,11 @@ export function ReservasPage() {
       return;
     }
     let active = true;
-    setTableOptionsLoading(true);
-    Promise.all([
+
+    if (selectionMode === "configured") {
+      setConfiguredOptionsLoading(true);
+      setConfiguredOptionsError("");
+      setTableOptions([]);
       loadAvailableReservationTableOptions({
         branchId: selectedBranchId,
         roomId: selectedRoomId,
@@ -102,7 +130,20 @@ export function ReservasPage() {
         serviceDate: selectedDate,
         serviceTime: reservationForm.serviceTime,
         preferredZone: reservationForm.preferredZone || undefined
-      }),
+      })
+        .then((options) => {
+          if (!active) return;
+          setTableOptions(options);
+          setReservationForm((current) => current.tableSelectionMode === "configured" && current.selectedTableIds.length && !options.some((option) => option.tableIds.join("|") === current.selectedTableIds.join("|"))
+            ? { ...current, selectedTableIds: [] }
+            : current);
+        })
+        .catch(() => { if (active) { setTableOptions([]); setConfiguredOptionsError("No se pudieron cargar las combinaciones disponibles."); } })
+        .finally(() => { if (active) setConfiguredOptionsLoading(false); });
+    } else {
+      setManualTablesLoading(true);
+      setManualTablesError("");
+      setManualTableOptions([]);
       loadAvailableManualReservationTables({
         branchId: selectedBranchId,
         roomId: selectedRoomId,
@@ -110,24 +151,18 @@ export function ReservasPage() {
         serviceTime: reservationForm.serviceTime,
         preferredZone: reservationForm.preferredZone || undefined
       })
-    ])
-      .then(([options, manualTables]) => {
-        if (!active) return;
-        setTableOptions(options);
-        setManualTableOptions(manualTables);
-        setReservationForm((current) => {
-          const selectionIsAvailable = current.tableSelectionMode === "manual"
-            ? current.selectedTableIds.length > 0 && current.selectedTableIds.every((id) => manualTables.some((table) => table.id === id))
-            : current.tableSelectionMode === "configured"
-              ? options.some((option) => option.tableIds.join("|") === current.selectedTableIds.join("|"))
-              : !current.selectedTableIds.length;
-          return selectionIsAvailable ? current : { ...current, selectedTableIds: [] };
-        });
-      })
-      .catch(() => { if (active) { setTableOptions([]); setManualTableOptions([]); } })
-      .finally(() => { if (active) setTableOptionsLoading(false); });
+        .then((manualTables) => {
+          if (!active) return;
+          setManualTableOptions(manualTables);
+          setReservationForm((current) => current.tableSelectionMode === "manual" && current.selectedTableIds.length && !current.selectedTableIds.every((id) => manualTables.some((table) => table.id === id))
+            ? { ...current, selectedTableIds: [] }
+            : current);
+        })
+        .catch(() => { if (active) { setManualTableOptions([]); setManualTablesError("No se pudieron cargar las mesas libres."); } })
+        .finally(() => { if (active) setManualTablesLoading(false); });
+    }
     return () => { active = false; };
-  }, [createOpen, selectedBranchId, selectedRoomId, selectedDate, reservationForm.partySize, reservationForm.serviceTime, reservationForm.preferredZone, loadAvailableReservationTableOptions, loadAvailableManualReservationTables, setReservationForm]);
+  }, [createOpen, selectedBranchId, selectedRoomId, selectedDate, reservationForm.partySize, reservationForm.serviceTime, reservationForm.preferredZone, reservationForm.tableSelectionMode, loadAvailableReservationTableOptions, loadAvailableManualReservationTables, setReservationForm, tableOptionsRetry]);
 
   const sortedReservations = useMemo(
     () =>
@@ -710,7 +745,7 @@ export function ReservasPage() {
                     selectedTableIds: event.target.value ? event.target.value.split("|") : []
                   }))}
                   className="font-medium"
-                  disabled={tableOptionsLoading}
+                  disabled={configuredOptionsLoading}
                 >
                   <option value="">Elegí una mesa o combinación</option>
                   {tableOptions.map((option) => (
@@ -719,7 +754,7 @@ export function ReservasPage() {
                     </option>
                   ))}
                 </FoodieSelect>
-                <p className="text-xs text-neutral-500">{tableOptionsLoading ? "Buscando mesas disponibles..." : tableOptions.length ? "Las combinaciones respetan los vínculos configurados del salón." : "No hay opciones configuradas disponibles para estos datos."}</p>
+                {configuredOptionsError ? <p className="flex items-center gap-2 text-xs text-red-600"><span>{configuredOptionsError}</span><button type="button" onClick={() => setTableOptionsRetry((current) => current + 1)} className="font-semibold underline">Reintentar</button></p> : <p className="text-xs text-neutral-500">{configuredOptionsLoading ? "Buscando combinaciones disponibles..." : tableOptions.length ? "Las combinaciones respetan los vínculos configurados del salón." : "No hay opciones configuradas disponibles para estos datos."}</p>}
               </>
             ) : null}
 
@@ -729,21 +764,21 @@ export function ReservasPage() {
                   <p className="text-xs text-neutral-600">Podés combinar mesas libres aunque no tengan un vínculo configurado. La disponibilidad se valida al guardar.</p>
                   <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-brand-orange">{manualSelectedTables.length} mesas · {manualSelectedCapacity} pax</span>
                 </div>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {manualTableOptions.map((table) => {
+                {!manualTablesLoading && !manualTablesError ? <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {manualTableCards.map((table) => {
                     const selected = reservationForm.selectedTableIds.includes(table.id);
                     return (
-                      <button key={table.id} type="button" onClick={() => setReservationForm((current) => ({
+                      <button key={table.id} type="button" disabled={!table.isAvailable} onClick={() => setReservationForm((current) => ({
                         ...current,
                         selectedTableIds: selected ? current.selectedTableIds.filter((id) => id !== table.id) : [...current.selectedTableIds, table.id]
-                      }))} className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-left transition ${selected ? "border-brand-orange bg-white" : "border-[#F0D8C9] bg-white/70 hover:border-brand-orange"}`}>
-                        <span className="font-semibold text-brand-ink">Mesa {table.label}</span>
-                        <span className="text-xs font-medium text-neutral-500">{table.seats} pax</span>
+                      }))} className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-left transition ${!table.isAvailable ? "cursor-not-allowed border-neutral-200 bg-neutral-100 text-neutral-400" : selected ? "border-brand-orange bg-white" : "border-[#F0D8C9] bg-white/70 hover:border-brand-orange"}`}>
+                        <span className="font-semibold">Mesa {table.label}{!table.isAvailable ? " · No disponible" : ""}</span>
+                        <span className="text-xs font-medium">{table.seats} pax</span>
                       </button>
                     );
                   })}
-                </div>
-                {!tableOptionsLoading && !manualTableOptions.length ? <p className="mt-3 text-xs text-neutral-500">No hay mesas libres para estos datos.</p> : null}
+                </div> : null}
+                {manualTablesLoading ? <p className="mt-3 text-xs text-neutral-500">Buscando mesas libres...</p> : manualTablesError ? <p className="mt-3 flex items-center gap-2 text-xs text-red-600"><span>{manualTablesError}</span><button type="button" onClick={() => setTableOptionsRetry((current) => current + 1)} className="font-semibold underline">Reintentar</button></p> : !manualTableOptions.length ? <p className="mt-3 text-xs text-neutral-500">No hay mesas libres para estos datos.</p> : null}
               </div>
             ) : null}
           </div>
