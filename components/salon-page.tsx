@@ -1759,18 +1759,20 @@ export function SalonPage() {
                       if (!left || !right) return null;
                       const combinedSeats = totalTableCapacity([left, right]);
                       return (
-                        <button
+                        <div
                           key={key}
-                          onClick={() => toggleCombination(key)}
-                          className="w-full rounded-[20px] border border-brand-orange bg-[#FFF4ED] px-4 py-4 text-left transition hover:bg-[#FFE8D9]"
+                          className="flex w-full items-center justify-between gap-3 rounded-[20px] border border-brand-orange bg-[#FFF4ED] px-4 py-4 text-left"
                         >
                           <p className="text-sm font-semibold text-brand-ink">
                             {left.label} ↔ {right.label}
                           </p>
                           <p className="mt-1 text-xs text-neutral-500">
-                            Compatibles · hasta {combinedSeats} pax entre ambas · Tocá para quitar el vínculo
+                            Compatibles · hasta {combinedSeats} pax entre ambas
                           </p>
-                        </button>
+                          <button type="button" onClick={() => toggleCombination(key)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#F0C7B2] text-[#B65221] hover:bg-white" aria-label={`Quitar compatibilidad entre ${left.label} y ${right.label}`} title="Quitar compatibilidad">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       );
                     })
                   ) : (
