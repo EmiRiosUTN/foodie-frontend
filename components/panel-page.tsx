@@ -259,8 +259,21 @@ export function PanelPage() {
             </FoodieSelect>
           </div>
 
-          <div className="ml-auto flex gap-2">
-            {bookingMode ? <><button type="button" onClick={() => { setBookingMode(false); setBookingTableIds([]); }} className="rounded-full border border-brand-line px-4 py-3 text-sm font-medium text-brand-ink">Cancelar</button><button type="button" disabled={!bookingTableIds.length} onClick={() => startReservation(bookingTableIds)} className="rounded-full bg-brand-orange px-4 py-3 text-sm font-medium text-white disabled:opacity-50">Continuar reserva ({bookingTableIds.length} · {bookingCapacity} pax)</button></> : <button type="button" disabled={isSelectedRoomBlocked} onClick={() => setBookingMode(true)} className="rounded-full bg-brand-orange px-4 py-3 text-sm font-medium text-white disabled:opacity-50">Nueva reserva</button>}
+          <div className="ml-auto flex flex-col items-end gap-2">
+            {bookingMode ? (
+              <>
+                <div className="max-w-[360px] rounded-2xl border border-brand-orange bg-white px-4 py-3 text-right shadow-[0_10px_24px_rgba(31,31,33,0.10)]">
+                  <p className="text-sm font-bold text-brand-ink">Seleccioná las mesas para la reserva</p>
+                  <p className="mt-1 text-xs text-neutral-500">{bookingTableIds.length ? `Mesas: ${bookingTables.map((table) => table.label).join(" + ")}` : "Todavía no seleccionaste mesas."}</p>
+                  {bookingTableIds.length ? <p className="mt-1 text-xs font-semibold text-brand-ink">Capacidad total: {bookingCapacity} pax</p> : null}
+                  <p className="mt-2 text-xs font-semibold text-brand-orange">Cuando termines, tocá “Continuar reserva” debajo.</p>
+                </div>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => { setBookingMode(false); setBookingTableIds([]); }} className="rounded-full border border-brand-line px-4 py-3 text-sm font-medium text-brand-ink">Cancelar</button>
+                  <button type="button" disabled={!bookingTableIds.length} onClick={() => startReservation(bookingTableIds)} className="rounded-full bg-brand-orange px-4 py-3 text-sm font-medium text-white disabled:opacity-50">Continuar reserva</button>
+                </div>
+              </>
+            ) : <button type="button" disabled={isSelectedRoomBlocked} onClick={() => { setSelectedTableId(""); setOpenMenuTableId(""); setBookingMode(true); }} className="rounded-full bg-brand-orange px-4 py-3 text-sm font-medium text-white disabled:opacity-50">Nueva reserva</button>}
           </div>
         </div>
 
@@ -272,6 +285,7 @@ export function PanelPage() {
           ) : (
             <div
               ref={layoutWrapRef}
+              onClick={() => { setSelectedTableId(""); setOpenMenuTableId(""); }}
               className="relative max-h-[78vh] w-full overflow-scroll overscroll-contain rounded-[24px] border border-brand-line bg-[#F7F4EF] p-3 sm:p-4"
               style={{ scrollbarGutter: "stable both-edges" }}
             >
@@ -280,15 +294,6 @@ export function PanelPage() {
                   <div className="rounded-2xl border border-[#D39C11] bg-[#FFF8E1]/95 px-5 py-3 text-center shadow-lg backdrop-blur-sm">
                     <p className="text-sm font-bold text-[#8A5B00]">Salón bloqueado para este turno</p>
                     <p className="mt-1 text-xs text-[#8A5B00]">{selectedRoomBlock?.reason || "No se pueden operar mesas mientras el salón esté cerrado."}</p>
-                  </div>
-                </div>
-              ) : null}
-              {bookingMode ? (
-                <div className="pointer-events-none sticky top-3 z-30 flex justify-center px-3">
-                  <div className="rounded-2xl border border-brand-orange bg-white/95 px-5 py-3 text-center shadow-lg backdrop-blur-sm">
-                    <p className="text-sm font-bold text-brand-ink">Seleccioná las mesas para la reserva</p>
-                    <p className="mt-1 text-xs text-neutral-500">{bookingTableIds.length ? `${bookingTableIds.length} mesas elegidas · Capacidad acumulada: ${bookingCapacity} pax` : "Todavía no seleccionaste mesas."}</p>
-                    <p className="mt-2 text-xs font-semibold text-brand-orange">Cuando termines, tocá “Continuar reserva” arriba a la derecha.</p>
                   </div>
                 </div>
               ) : null}
@@ -322,7 +327,8 @@ export function PanelPage() {
                       <button
                         type="button"
                         disabled={isSelectedRoomBlocked || (bookingMode && !isBookingCandidate)}
-                        onClick={() => {
+                        onClick={(event) => {
+                          event.stopPropagation();
                           if (bookingMode) { setBookingTableIds((current) => current.includes(table.id) ? current.filter((id) => id !== table.id) : [...current, table.id]); return; }
                           setSelectedTableId(table.id);
                           setOpenMenuTableId("");
