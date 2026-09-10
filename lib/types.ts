@@ -280,8 +280,26 @@ export type ReservationDeposit = {
   status: "pending" | "partial" | "complete";
   notes?: string | null;
   reservation: { id: string; code: string; fullName: string; phone: string; serviceDate: string; serviceTime: string };
-  entries: Array<{ id: string; type: "payment" | "refund" | "adjustment"; amount: number | string; paidAt: string; paymentMethod: string; reference?: string | null; notes?: string | null; proofs: Array<{ id: string; originalName: string }> }>;
-  proofRequests: Array<{ id: string; status: string; expiresAt: string; proofs: Array<{ id: string; originalName: string; receivedAt: string }> }>;
+  entries: Array<{ id: string; type: "payment" | "refund" | "adjustment"; amount: number | string; paidAt: string; paymentMethod: string; reference?: string | null; notes?: string | null; proofs: Array<{ id: string; originalName: string; reviewStatus?: "pending_review" | "approved" | "rejected" }> }>;
+  proofRequests: Array<{ id: string; status: string; expiresAt: string; proofs: Array<{ id: string; originalName: string; receivedAt: string; reviewStatus?: "pending_review" | "approved" | "rejected"; rejectionReason?: string | null }> }>;
+};
+
+export type DocumentCategory = "deposit_proof" | "cv" | "price_list" | "menu" | "invoice" | "contract" | "supplier" | "other";
+export type StoredDocument = {
+  id: string;
+  category: DocumentCategory;
+  suggestedCategory?: DocumentCategory | null;
+  suggestionConfidence?: number | null;
+  origin: "chat" | "manual" | "n8n";
+  status: "inbox" | "active" | "archived";
+  originalName: string;
+  mimeType: string;
+  size: number;
+  contactName?: string | null;
+  contactPhone?: string | null;
+  caption?: string | null;
+  createdAt: string;
+  depositProof?: { id: string; reviewStatus: "pending_review" | "approved" | "rejected"; request: { deposit: { reservation: { fullName: string; code: string } } } } | null;
 };
 
 export type ReservationTableOption = {
