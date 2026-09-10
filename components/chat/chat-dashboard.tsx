@@ -31,7 +31,7 @@ import { useChatAuth } from "./chat-auth";
 import { useChat } from "./chat-context";
 import { ChatExportModal } from "./chat-export-modal";
 import { chatService, type Chat, type Message } from "./chat-service";
-import { useChatTagService } from "./chat-tag-service";
+import { ATTENTION_TAG_NAME, isAttentionTag, normalizeChatTagName, useChatTagService } from "./chat-tag-service";
 import { ChatTagBadge } from "./chat-tag-badge";
 import { ChatTagFilter } from "./chat-tag-filter";
 import { ChatTagManagerModal } from "./chat-tag-manager-modal";
@@ -354,17 +354,23 @@ export function ChatDashboard() {
     scopedChats.forEach((chat) => {
       chat.tags?.forEach((tagName) => {
         const tag = tagService.getTag(tagName);
-        if (tag && !tagMap.has(tagName)) {
-          tagMap.set(tagName, tag.color);
+        const normalizedTagName = normalizeChatTagName(tagName);
+        const displayName = isAttentionTag(tagName) ? ATTENTION_TAG_NAME : tag?.name || tagName.trim();
+        if (displayName && !tagMap.has(normalizedTagName)) {
+          tagMap.set(normalizedTagName, tag?.color || "#6B7280");
         }
       });
     });
-    return Array.from(tagMap.entries()).map(([name, color]) => ({ name, color }));
+    return Array.from(tagMap.entries()).map(([normalizedName, color]) => ({
+      name: normalizedName === normalizeChatTagName(ATTENTION_TAG_NAME) ? ATTENTION_TAG_NAME : scopedChats.flatMap((chat) => chat.tags || []).find((tagName) => normalizeChatTagName(tagName) === normalizedName)?.trim() || normalizedName,
+      color
+    }));
   }, [scopedChats, tagService.tags]);
 
   const filteredChats = useMemo(() => {
     if (!selectedTagFilter) return scopedChats;
-    return scopedChats.filter((chat) => chat.tags?.includes(selectedTagFilter));
+    const normalizedSelectedTag = normalizeChatTagName(selectedTagFilter);
+    return scopedChats.filter((chat) => chat.tags?.some((tagName) => normalizeChatTagName(tagName) === normalizedSelectedTag));
   }, [scopedChats, selectedTagFilter]);
 
   const displayChats = useMemo(() => {

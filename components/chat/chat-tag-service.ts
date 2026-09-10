@@ -5,6 +5,22 @@ import { chatApi } from "./chat-api";
 
 const FOODIE_API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1";
 
+export const ATTENTION_TAG_NAME = "Se requiere atención";
+export const ATTENTION_TAG_COLOR = "#DC2626";
+
+export function normalizeChatTagName(value: string) {
+  return value
+    .trim()
+    .toLocaleLowerCase("es-AR")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+}
+
+export function isAttentionTag(value: string) {
+  return normalizeChatTagName(value) === "se requiere atencion";
+}
+
 async function foodieRequest(path: string, init?: RequestInit) {
   const token = typeof window !== "undefined" ? window.localStorage.getItem("foodie_token") : null;
   const response = await fetch(`${FOODIE_API_URL}${path}`, {
@@ -81,8 +97,11 @@ export function useChatTagService() {
   }, []);
 
   const getTag = useCallback((tagName: string) => {
-    const normalizedTagName = tagName.trim().toLowerCase();
-    return tags.find((tag) => tag.name.trim().toLowerCase() === normalizedTagName);
+    if (isAttentionTag(tagName)) {
+      return { name: ATTENTION_TAG_NAME, color: ATTENTION_TAG_COLOR };
+    }
+    const normalizedTagName = normalizeChatTagName(tagName);
+    return tags.find((tag) => normalizeChatTagName(tag.name) === normalizedTagName);
   }, [tags]);
 
   return {
