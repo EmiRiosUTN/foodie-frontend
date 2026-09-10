@@ -1797,7 +1797,10 @@ export function SalonPage() {
               <div className="mt-5 grid gap-5 xl:grid-cols-2">
                 <div className="rounded-[24px] border border-brand-line bg-white p-4">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500">Vínculos directos</p>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500">Vínculos directos</p>
+                      <p className="mt-1 text-xs text-neutral-400">Uniones configuradas entre dos mesas. Usá el tachito para quitar un vínculo.</p>
+                    </div>
                     <span className="rounded-full bg-[#FFF0E7] px-2.5 py-1 text-xs font-semibold text-[#B65221]">{activeCombinationKeys.length}</span>
                   </div>
                   <div className="mt-3 max-h-[30vh] space-y-2 overflow-y-auto pr-1">
@@ -1812,6 +1815,7 @@ export function SalonPage() {
                           <div key={key} className="flex items-center gap-3 rounded-2xl border border-brand-orange bg-[#FFF8F4] px-3 py-3">
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-sm font-semibold text-brand-ink">{left.label} ↔ {right.label}</p>
+                              <p className="mt-0.5 text-xs text-neutral-500">2 mesas conectadas</p>
                             </div>
                             <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-[#B65221]">{combinedSeats} pax</span>
                             <button type="button" onClick={() => toggleCombination(key)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#F0C7B2] text-[#B65221] transition hover:bg-white" aria-label={`Quitar compatibilidad entre ${left.label} y ${right.label}`} title="Quitar compatibilidad">
