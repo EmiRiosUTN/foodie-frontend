@@ -1786,13 +1786,16 @@ export function SalonPage() {
                 </div>
               </div>
 
-              <div className="border-t border-brand-line px-5 py-5">
-                <div className="rounded-[20px] border border-[#E4DEF9] bg-[#F7F5FF] px-4 py-3">
+            </aside>
+
+            <section className="border-t border-brand-line bg-[#FCFAF7] px-5 py-6 xl:col-span-2 xl:px-7">
+              <div className="rounded-[20px] border border-[#E4DEF9] bg-[#F7F5FF] px-4 py-3">
                   <p className="text-sm font-semibold text-brand-ink">Combinaciones de mesas</p>
                   <p className="mt-1 text-xs leading-5 text-neutral-500">Los vínculos directos se editan abajo. Las cadenas posibles se calculan solas y no modifican el plano.</p>
-                </div>
+              </div>
 
-                <div className="mt-5">
+              <div className="mt-5 grid gap-5 xl:grid-cols-2">
+                <div className="rounded-[24px] border border-brand-line bg-white p-4">
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500">Vínculos directos</p>
                     <span className="rounded-full bg-[#FFF0E7] px-2.5 py-1 text-xs font-semibold text-[#B65221]">{activeCombinationKeys.length}</span>
@@ -1809,7 +1812,6 @@ export function SalonPage() {
                           <div key={key} className="flex items-center gap-3 rounded-2xl border border-brand-orange bg-[#FFF8F4] px-3 py-3">
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-sm font-semibold text-brand-ink">{left.label} ↔ {right.label}</p>
-                              <p className="mt-0.5 text-xs text-neutral-500">Unión física permitida</p>
                             </div>
                             <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-[#B65221]">{combinedSeats} pax</span>
                             <button type="button" onClick={() => toggleCombination(key)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#F0C7B2] text-[#B65221] transition hover:bg-white" aria-label={`Quitar compatibilidad entre ${left.label} y ${right.label}`} title="Quitar compatibilidad">
@@ -1824,7 +1826,7 @@ export function SalonPage() {
                   </div>
                 </div>
 
-                <div className="mt-5 border-t border-brand-line pt-5">
+                <div className="rounded-[24px] border border-brand-line bg-white p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500">Cadenas posibles</p>
@@ -1859,11 +1861,11 @@ export function SalonPage() {
                       })
                     ) : (
                       <p className="rounded-2xl border border-dashed border-[#D9D3F5] bg-[#FAF9FF] px-3 py-4 text-xs leading-5 text-neutral-500">Cuando agregues vínculos directos, acá vas a ver todas las combinaciones que pueden formarse.</p>
-                    )}
+                  )}
                   </div>
                 </div>
               </div>
-            </aside>
+            </section>
           </div>
         </section>
       )}
