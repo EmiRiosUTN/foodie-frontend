@@ -541,24 +541,29 @@ export function SalonPage() {
     [combinationKeys, editorItems]
   );
 
-  const combinableTables = useMemo(
-    () => editorItems.filter((item) => item.isCombinable && isTableKind(item.kind)),
-    [editorItems]
-  );
-
-  const possibleCombinationPairs = useMemo(() => {
-    const pairs: Array<{ key: string; left: EditorItem; right: EditorItem }> = [];
-    for (let i = 0; i < combinableTables.length; i += 1) {
-      for (let j = i + 1; j < combinableTables.length; j += 1) {
-        pairs.push({
-          key: pairKey(combinableTables[i].id, combinableTables[j].id),
-          left: combinableTables[i],
-          right: combinableTables[j]
-        });
-      }
+  const connectedTableIds = useMemo(() => {
+    if (!selectedItemId || !isTableKind(editorItems.find((item) => item.id === selectedItemId)?.kind || "wall")) return new Set<string>();
+    const graph = new Map<string, Set<string>>();
+    activeCombinationKeys.forEach((key) => {
+      const [left, right] = key.split("__");
+      if (!graph.has(left)) graph.set(left, new Set());
+      if (!graph.has(right)) graph.set(right, new Set());
+      graph.get(left)!.add(right);
+      graph.get(right)!.add(left);
+    });
+    const connected = new Set([selectedItemId]);
+    const pending = [selectedItemId];
+    while (pending.length) {
+      const id = pending.pop()!;
+      graph.get(id)?.forEach((neighbour) => {
+        if (!connected.has(neighbour)) {
+          connected.add(neighbour);
+          pending.push(neighbour);
+        }
+      });
     }
-    return pairs;
-  }, [combinableTables]);
+    return connected;
+  }, [activeCombinationKeys, editorItems, selectedItemId]);
 
   const tableCombinationOptions = useMemo(
     () =>
@@ -1516,7 +1521,7 @@ export function SalonPage() {
 
                       <div
                         className={`relative h-full w-full ${
-                          selectedItemId === item.id ? "ring-4 ring-[#FFB088]" : ""
+                          selectedItemId === item.id ? "ring-4 ring-[#FFB088]" : connectedTableIds.has(item.id) ? "ring-2 ring-[#6C63FF]" : ""
                         } ${shapeClass(item.kind)}`}
                         style={{ transform: `rotate(${item.rotation}deg)`, transformOrigin: "center" }}
                       >
@@ -1628,6 +1633,7 @@ export function SalonPage() {
                                 {item.seats} pax
                                 <br />
                                 {item.isReservable ? "reservable" : "sin reserva"}
+                                {activeCombinationKeys.some((key) => key.split("__").includes(item.id)) ? <><br /><span className="text-[10px] text-[#6C63FF]">compatible</span></> : null}
                               </>
                             ) : null}
                           </span>
@@ -1743,35 +1749,36 @@ export function SalonPage() {
               <div className="border-t border-brand-line px-5 py-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-brand-ink">Combinaciones posibles</p>
-                    <p className="mt-1 text-sm text-neutral-500">Solo entre mesas marcadas como combinables.</p>
+                    <p className="text-sm font-semibold text-brand-ink">Compatibilidades entre mesas</p>
+                    <p className="mt-1 text-sm text-neutral-500">Editá una mesa para indicar con cuáles se puede unir. Las cadenas se forman automáticamente.</p>
                   </div>
                 </div>
 
                 <div className="mt-4 max-h-[28vh] overflow-y-auto space-y-3 pr-1">
-                  {possibleCombinationPairs.length ? (
-                    possibleCombinationPairs.map((pair) => {
-                      const active = activeCombinationKeys.includes(pair.key);
-                      const combinedSeats = getTableMaxPartySize(pair.left) + getTableMaxPartySize(pair.right);
+                  {activeCombinationKeys.length ? (
+                    activeCombinationKeys.map((key) => {
+                      const [leftId, rightId] = key.split("__");
+                      const left = editorItems.find((item) => item.id === leftId);
+                      const right = editorItems.find((item) => item.id === rightId);
+                      if (!left || !right) return null;
+                      const combinedSeats = getTableMaxPartySize(left) + getTableMaxPartySize(right);
                       return (
                         <button
-                          key={pair.key}
-                          onClick={() => toggleCombination(pair.key)}
-                          className={`w-full rounded-[20px] border px-4 py-4 text-left transition ${
-                            active ? "border-brand-orange bg-[#FFF4ED]" : "border-brand-line bg-white"
-                          }`}
+                          key={key}
+                          onClick={() => toggleCombination(key)}
+                          className="w-full rounded-[20px] border border-brand-orange bg-[#FFF4ED] px-4 py-4 text-left transition hover:bg-[#FFE8D9]"
                         >
                           <p className="text-sm font-semibold text-brand-ink">
-                            {pair.left.label} + {pair.right.label}
+                            {left.label} ↔ {right.label}
                           </p>
                           <p className="mt-1 text-xs text-neutral-500">
-                            {getTableMaxPartySize(pair.left)} + {getTableMaxPartySize(pair.right)} = {combinedSeats} pax
+                            Compatibles · hasta {combinedSeats} pax entre ambas · Tocá para quitar el vínculo
                           </p>
                         </button>
                       );
                     })
                   ) : (
-                    <p className="text-sm text-neutral-500">Marca dos o mas mesas como combinables para definir parejas.</p>
+                    <p className="text-sm text-neutral-500">Todavía no hay vínculos. Editá una mesa y elegí con cuáles se puede combinar.</p>
                   )}
                 </div>
               </div>
@@ -2012,13 +2019,13 @@ export function SalonPage() {
                   }
                   className="h-4 w-4 accent-brand-orange"
                 />
-                Combinable
+                Permitir combinaciones
               </label>
 
               {tableModal.isCombinable ? (
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-sm font-semibold text-white">Se puede combinar con</p>
-                  <p className="mt-1 text-xs leading-5 text-white/65">Selecciona manualmente las mesas compatibles. No se elige automaticamente.</p>
+                  <p className="text-sm font-semibold text-white">Compatible con</p>
+                  <p className="mt-1 text-xs leading-5 text-white/65">Seleccioná las mesas que pueden unirse físicamente. Foodie formará cadenas válidas de mesas libres automáticamente.</p>
                   <div className="mt-3 max-h-40 space-y-2 overflow-y-auto pr-1">
                     {tableCombinationOptions.length ? (
                       tableCombinationOptions.map((table) => (
