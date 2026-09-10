@@ -9,6 +9,7 @@ import { FoodieSelect } from "./foodie-select";
 import { ReservationTableReassignModal } from "./reservation-table-reassign-modal";
 import { WorkspaceShell } from "./workspace-shell";
 import { useWorkspace } from "./workspace-provider";
+import { totalTableCapacity } from "../lib/table-capacity";
 
 function csvEscape(value: unknown) {
   const text = String(value ?? "");
@@ -314,7 +315,7 @@ export function ReservasPage() {
                     </div>
                     <div className="min-w-0 text-sm text-neutral-500">
                       <p className="truncate">{reservation.room.name}</p>
-                      <p className="truncate text-xs text-neutral-400">{reservation.tables.map((item) => item.table.label).join(", ") || "Sin asignacion"}</p>
+                      <p className="truncate text-xs text-neutral-400">{reservation.tables.map((item) => item.table.label).join(", ") || "Sin asignacion"}{reservation.tables.length > 1 ? ` · Capacidad: ${totalTableCapacity(reservation.tables.map((item) => item.table))} pax` : ""}</p>
                     </div>
                     <div className="text-sm font-semibold text-brand-ink">{reservation.code}</div>
                     <div className="text-sm text-neutral-500">{reservation.status}</div>
@@ -368,7 +369,7 @@ export function ReservasPage() {
                     </div>
                     <div className="shrink-0 text-xs font-medium text-neutral-500">{reservation.status}</div>
                   </div>
-                  <p className="mt-3 text-xs text-neutral-400">{reservation.tables.map((item) => item.table.label).join(", ") || "Sin asignacion"}</p>
+                  <p className="mt-3 text-xs text-neutral-400">{reservation.tables.map((item) => item.table.label).join(", ") || "Sin asignacion"}{reservation.tables.length > 1 ? ` · Capacidad: ${totalTableCapacity(reservation.tables.map((item) => item.table))} pax` : ""}</p>
                   <div className="mt-4 flex gap-2">
                     {reservation.status !== "cancelled" ? <>
                       <button

@@ -8,6 +8,7 @@ import { FoodieSelect } from "./foodie-select";
 import { WorkspaceShell } from "./workspace-shell";
 import { useWorkspace } from "./workspace-provider";
 import type { Room, RoomBookingRule } from "../lib/types";
+import { totalTableCapacity } from "../lib/table-capacity";
 
 const weekdayOptions = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 type BookingRuleForm = { id?: string; weekdays: number[]; turns: Array<"mediodia" | "noche">; startsAt: string; endsAt: string; reason: string };
@@ -160,11 +161,6 @@ function isTableKind(kind: EditorKind): kind is "round" | "square" | "rectangula
 
 function pairKey(a: string, b: string) {
   return [a, b].sort().join("__");
-}
-
-function getTableMaxPartySize(table: Pick<EditorItem, "seats" | "metadata">) {
-  const metadata = (table.metadata || {}) as TableItemMetadata;
-  return metadata.capacity?.maxPartySize || table.seats || 0;
 }
 
 function normalizeRotation(value: number) {
@@ -1155,7 +1151,7 @@ export function SalonPage() {
           id: `${selectedRoomId}-combo-${index + 1}`,
           parentTableId,
           childTableId,
-          combinedSeats: getTableMaxPartySize(left) + getTableMaxPartySize(right)
+          combinedSeats: totalTableCapacity([left, right])
         };
       })
       .filter((item): item is { id: string; parentTableId: string; childTableId: string; combinedSeats: number } => Boolean(item));
@@ -1761,7 +1757,7 @@ export function SalonPage() {
                       const left = editorItems.find((item) => item.id === leftId);
                       const right = editorItems.find((item) => item.id === rightId);
                       if (!left || !right) return null;
-                      const combinedSeats = getTableMaxPartySize(left) + getTableMaxPartySize(right);
+                      const combinedSeats = totalTableCapacity([left, right]);
                       return (
                         <button
                           key={key}

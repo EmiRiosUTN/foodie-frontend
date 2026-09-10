@@ -6,6 +6,7 @@ import { AppModal } from "./app-modal";
 import { ReservationTableReassignModal } from "./reservation-table-reassign-modal";
 import { WorkspaceShell } from "./workspace-shell";
 import { useWorkspace } from "./workspace-provider";
+import { totalTableCapacity } from "../lib/table-capacity";
 
 const CANVAS_WIDTH = 1600;
 const CANVAS_HEIGHT = 960;
@@ -177,6 +178,8 @@ export function PanelPage() {
     });
     return graph;
   }, [roomDetail]);
+  const bookingTables = roomDetail?.tables.filter((table) => bookingTableIds.includes(table.id)) || [];
+  const bookingCapacity = totalTableCapacity(bookingTables);
 
   function startReservation(tableIds: string[]) {
     setReservationForm((current) => ({ ...current, selectedTableIds: tableIds }));
@@ -222,7 +225,7 @@ export function PanelPage() {
             </FoodieSelect>
           </div>
           <div className="flex gap-2">
-            {bookingMode ? <><button type="button" onClick={() => { setBookingMode(false); setBookingTableIds([]); }} className="rounded-full border border-brand-line px-4 py-3 text-sm font-medium text-brand-ink">Cancelar</button><button type="button" disabled={!bookingTableIds.length} onClick={() => startReservation(bookingTableIds)} className="rounded-full bg-brand-orange px-4 py-3 text-sm font-medium text-white disabled:opacity-50">Continuar ({bookingTableIds.length})</button></> : <button type="button" disabled={isSelectedRoomBlocked} onClick={() => setBookingMode(true)} className="rounded-full bg-brand-orange px-4 py-3 text-sm font-medium text-white disabled:opacity-50">Reservar mesas</button>}
+            {bookingMode ? <><button type="button" onClick={() => { setBookingMode(false); setBookingTableIds([]); }} className="rounded-full border border-brand-line px-4 py-3 text-sm font-medium text-brand-ink">Cancelar</button><button type="button" disabled={!bookingTableIds.length} onClick={() => startReservation(bookingTableIds)} className="rounded-full bg-brand-orange px-4 py-3 text-sm font-medium text-white disabled:opacity-50">Continuar ({bookingTableIds.length} · {bookingCapacity} pax)</button></> : <button type="button" disabled={isSelectedRoomBlocked} onClick={() => setBookingMode(true)} className="rounded-full bg-brand-orange px-4 py-3 text-sm font-medium text-white disabled:opacity-50">Reservar mesas</button>}
           </div>
 
           <div className="min-w-[180px] flex-1">
@@ -446,7 +449,7 @@ export function PanelPage() {
           <label className="space-y-2 text-sm text-brand-ink"><span className="font-medium">Teléfono</span><input value={reservationForm.phone} onChange={(event) => setReservationForm((current) => ({ ...current, phone: event.target.value }))} className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange" /></label>
           <label className="space-y-2 text-sm text-brand-ink"><span className="font-medium">Comensales</span><input type="number" min={1} value={reservationForm.partySize} onChange={(event) => setReservationForm((current) => ({ ...current, partySize: event.target.value }))} className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange" /></label>
           <label className="space-y-2 text-sm text-brand-ink"><span className="font-medium">Horario</span><input type="time" value={reservationForm.serviceTime} onChange={(event) => setReservationForm((current) => ({ ...current, serviceTime: event.target.value }))} className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange" /></label>
-          <div className="rounded-2xl border border-brand-orange bg-[#FFF4ED] px-4 py-3 text-sm text-brand-ink md:col-span-2"><span className="font-semibold">Mesas seleccionadas: </span>{reservationForm.selectedTableIds.length ? roomDetail?.tables.filter((table) => reservationForm.selectedTableIds.includes(table.id)).map((table) => table.label).join(" + ") : "Asignación automática"}</div>
+          <div className="rounded-2xl border border-brand-orange bg-[#FFF4ED] px-4 py-3 text-sm text-brand-ink md:col-span-2"><span className="font-semibold">Mesas seleccionadas: </span>{reservationForm.selectedTableIds.length ? `${roomDetail?.tables.filter((table) => reservationForm.selectedTableIds.includes(table.id)).map((table) => table.label).join(" + ")} · Capacidad: ${totalTableCapacity(roomDetail?.tables.filter((table) => reservationForm.selectedTableIds.includes(table.id)) || [])} pax` : "Asignación automática"}</div>
           {createError ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 md:col-span-2">{createError}</p> : null}
         </div>
       </AppModal>
