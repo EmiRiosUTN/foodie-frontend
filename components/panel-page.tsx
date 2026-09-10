@@ -191,8 +191,8 @@ export function PanelPage() {
       title="Panel"
       description=""
     >
-      <section className="relative overflow-visible rounded-[30px] border border-brand-line bg-white">
-        <div className="flex flex-wrap items-end gap-4 border-b border-brand-line px-5 py-4">
+      <section className="relative w-full min-w-0 max-w-full overflow-visible rounded-[30px] border border-brand-line bg-white">
+        <div className="flex min-w-0 flex-wrap items-end gap-4 border-b border-brand-line px-5 py-4">
           <div className="min-w-[180px] flex-1">
             <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-neutral-400">Sucursal</label>
             <FoodieSelect
