@@ -85,6 +85,7 @@ type WorkspaceContextValue = {
   saveRoomLayout: (roomId: string, payload: unknown) => Promise<void>;
   createReservation: () => Promise<void>;
   moveReservation: (reservationId: string, action: "check-in" | "release") => Promise<void>;
+  deleteReservation: (reservationId: string) => Promise<void>;
   loadReservationTableOptions: (reservationId: string) => Promise<ReservationTableOption[]>;
   reassignReservationTables: (reservationId: string, tableIds: string[]) => Promise<void>;
   setTableState: (tableId: string, status: ServiceState["status"]) => Promise<void>;
@@ -745,6 +746,18 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     return api<PlatformRestaurantDetail>(`/platform/restaurants/${restaurantId}`);
   }
 
+  async function deleteReservation(reservationId: string) {
+    try {
+      await api(`/restaurant/reservations/${reservationId}`, { method: "DELETE" });
+      await loadOperationalData();
+      setFeedback("Reserva eliminada");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudo eliminar la reserva";
+      setFeedback(message);
+      throw new Error(message);
+    }
+  }
+
   async function loadReservationTableOptions(reservationId: string) {
     return api<ReservationTableOption[]>(`/restaurant/reservations/${reservationId}/table-options`);
   }
@@ -1018,6 +1031,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       saveRoomLayout,
       createReservation,
       moveReservation,
+      deleteReservation,
       loadReservationTableOptions,
       reassignReservationTables,
       setTableState,

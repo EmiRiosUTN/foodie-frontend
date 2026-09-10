@@ -1,9 +1,10 @@
 "use client";
 
-import { CalendarDays, CheckCircle2, Clock3, Download, Plus, Printer, Search, Users } from "lucide-react";
+import { CalendarDays, CheckCircle2, Clock3, Download, Plus, Printer, Search, Trash2, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { Reservation } from "../lib/types";
 import { AppModal } from "./app-modal";
+import { ConfirmDialog } from "./confirm-dialog";
 import { FoodieSelect } from "./foodie-select";
 import { ReservationTableReassignModal } from "./reservation-table-reassign-modal";
 import { WorkspaceShell } from "./workspace-shell";
@@ -37,7 +38,9 @@ export function ReservasPage() {
     setReservationForm,
     createReservation,
     moveReservation,
+    deleteReservation,
     bootstrap,
+    currentUser,
     roomDetail,
     selectedRoomId,
     setSelectedRoomId,
@@ -63,8 +66,11 @@ export function ReservasPage() {
   const [historyRows, setHistoryRows] = useState<Reservation[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Reservation | null>(null);
+  const [deleteError, setDeleteError] = useState("");
   const zonePills = roomDetail?.zones || [];
   const selectedBranch = bootstrap?.branches.find((branch) => branch.id === selectedBranchId);
+  const canDeleteReservations = ["restaurant_owner", "restaurant_manager"].includes(currentUser?.role || "");
 
   const sortedReservations = useMemo(
     () =>
@@ -118,6 +124,18 @@ export function ReservasPage() {
       setHistoryError(error instanceof Error ? error.message : "No se pudo cargar el historico.");
     } finally {
       setHistoryLoading(false);
+    }
+  };
+
+  const handleDeleteReservation = async () => {
+    if (!deleteTarget) return;
+    setDeleteError("");
+    try {
+      await deleteReservation(deleteTarget.id);
+      setHistoryRows((current) => current.filter((reservation) => reservation.id !== deleteTarget.id));
+      setDeleteTarget(null);
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : "No se pudo eliminar la reserva.");
     }
   };
 
@@ -266,20 +284,22 @@ export function ReservasPage() {
                     <div className="text-sm font-semibold text-brand-ink">{reservation.code}</div>
                     <div className="text-sm text-neutral-500">{reservation.status}</div>
                     <div className="flex items-start justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => moveReservation(reservation.id, "check-in")}
-                        className="rounded-full bg-brand-orange px-3 py-2 text-xs font-medium text-white"
-                      >
-                        Check-in
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => moveReservation(reservation.id, "release")}
-                        className="rounded-full border border-brand-line px-3 py-2 text-xs font-medium text-brand-ink"
-                      >
-                        Liberar
-                      </button>
+                      {reservation.status !== "cancelled" ? <>
+                        <button
+                          type="button"
+                          onClick={() => moveReservation(reservation.id, "check-in")}
+                          className="rounded-full bg-brand-orange px-3 py-2 text-xs font-medium text-white"
+                        >
+                          Check-in
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveReservation(reservation.id, "release")}
+                          className="rounded-full border border-brand-line px-3 py-2 text-xs font-medium text-brand-ink"
+                        >
+                          Liberar
+                        </button>
+                      </> : null}
                       {["pending", "confirmed"].includes(reservation.status) ? (
                         <button
                           type="button"
@@ -287,6 +307,11 @@ export function ReservasPage() {
                           className="rounded-full border border-brand-orange px-3 py-2 text-xs font-medium text-brand-orange"
                         >
                           Cambiar mesa
+                        </button>
+                      ) : null}
+                      {canDeleteReservations && reservation.status === "cancelled" ? (
+                        <button type="button" onClick={() => { setDeleteError(""); setDeleteTarget(reservation); }} className="rounded-full border border-red-200 px-3 py-2 text-xs font-medium text-red-700">
+                          Eliminar
                         </button>
                       ) : null}
                     </div>
@@ -310,20 +335,22 @@ export function ReservasPage() {
                   </div>
                   <p className="mt-3 text-xs text-neutral-400">{reservation.tables.map((item) => item.table.label).join(", ") || "Sin asignacion"}</p>
                   <div className="mt-4 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => moveReservation(reservation.id, "check-in")}
-                      className="flex-1 rounded-full bg-brand-orange px-4 py-2.5 text-sm font-medium text-white"
-                    >
-                      Check-in
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => moveReservation(reservation.id, "release")}
-                      className="flex-1 rounded-full border border-brand-line px-4 py-2.5 text-sm font-medium text-brand-ink"
-                    >
-                      Liberar
-                    </button>
+                    {reservation.status !== "cancelled" ? <>
+                      <button
+                        type="button"
+                        onClick={() => moveReservation(reservation.id, "check-in")}
+                        className="flex-1 rounded-full bg-brand-orange px-4 py-2.5 text-sm font-medium text-white"
+                      >
+                        Check-in
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveReservation(reservation.id, "release")}
+                        className="flex-1 rounded-full border border-brand-line px-4 py-2.5 text-sm font-medium text-brand-ink"
+                      >
+                        Liberar
+                      </button>
+                    </> : null}
                     {["pending", "confirmed"].includes(reservation.status) ? (
                       <button
                         type="button"
@@ -331,6 +358,11 @@ export function ReservasPage() {
                         className="flex-1 rounded-full border border-brand-orange px-4 py-2.5 text-sm font-medium text-brand-orange"
                       >
                         Cambiar mesa
+                      </button>
+                      ) : null}
+                    {canDeleteReservations && reservation.status === "cancelled" ? (
+                      <button type="button" onClick={() => { setDeleteError(""); setDeleteTarget(reservation); }} className="flex-1 rounded-full border border-red-200 px-4 py-2.5 text-sm font-medium text-red-700">
+                        Eliminar
                       </button>
                     ) : null}
                   </div>
@@ -441,7 +473,7 @@ export function ReservasPage() {
 
         <div className="overflow-x-auto">
           <div className="min-w-[920px]">
-            <div className="grid grid-cols-[120px_120px_minmax(0,1.5fr)_110px_110px_minmax(0,1fr)_130px] gap-4 px-6 py-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
+            <div className="grid grid-cols-[120px_120px_minmax(0,1.5fr)_110px_110px_minmax(0,1fr)_130px_110px] gap-4 px-6 py-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
               <span>Fecha</span>
               <span>Hora</span>
               <span>Cliente</span>
@@ -449,11 +481,12 @@ export function ReservasPage() {
               <span>Estado</span>
               <span>Salon</span>
               <span>Codigo</span>
+              <span>Acciones</span>
             </div>
             <div className="divide-y divide-brand-line">
               {historyRows.length ? (
                 historyRows.map((reservation) => (
-                  <div key={reservation.id} className="grid grid-cols-[120px_120px_minmax(0,1.5fr)_110px_110px_minmax(0,1fr)_130px] gap-4 px-6 py-4 text-sm">
+                  <div key={reservation.id} className="grid grid-cols-[120px_120px_minmax(0,1.5fr)_110px_110px_minmax(0,1fr)_130px_110px] gap-4 px-6 py-4 text-sm">
                     <span className="text-neutral-500">{formatDate(reservation.serviceDate)}</span>
                     <span className="font-semibold text-brand-ink">{reservation.serviceTime}</span>
                     <span className="min-w-0 truncate font-semibold text-brand-ink">{reservation.fullName}</span>
@@ -461,6 +494,7 @@ export function ReservasPage() {
                     <span className="text-neutral-500">{reservation.status}</span>
                     <span className="min-w-0 truncate text-neutral-500">{reservation.room.name}</span>
                     <span className="font-semibold text-brand-ink">{reservation.code}</span>
+                    <span>{canDeleteReservations && reservation.status === "cancelled" ? <button type="button" onClick={() => { setDeleteError(""); setDeleteTarget(reservation); }} className="inline-flex items-center gap-1 rounded-full border border-red-200 px-3 py-2 text-xs font-medium text-red-700"><Trash2 className="h-3.5 w-3.5" />Eliminar</button> : null}</span>
                   </div>
                 ))
               ) : (
@@ -473,6 +507,17 @@ export function ReservasPage() {
       ) : null}
 
       <ReservationTableReassignModal reservation={reassignReservation} onClose={() => setReassignReservation(null)} />
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Eliminar reserva cancelada"
+        description={`Vas a eliminar definitivamente la reserva de ${deleteTarget?.fullName || "este cliente"}. Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar reserva"
+        tone="danger"
+        onCancel={() => { setDeleteError(""); setDeleteTarget(null); }}
+        onConfirm={() => void handleDeleteReservation()}
+      />
+      {deleteError ? <p className="fixed bottom-5 right-5 z-50 max-w-md rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{deleteError}</p> : null}
 
       <AppModal
         open={createOpen}
