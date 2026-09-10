@@ -537,6 +537,50 @@ export function SalonPage() {
     [combinationKeys, editorItems]
   );
 
+  const possibleTableChains = useMemo(() => {
+    const tables = editorItems
+      .filter((item) => isTableKind(item.kind))
+      .sort((left, right) => left.label.localeCompare(right.label, "es", { numeric: true, sensitivity: "base" }));
+    const tablesById = new Map(tables.map((table) => [table.id, table]));
+    const graph = new Map<string, Set<string>>();
+
+    activeCombinationKeys.forEach((key) => {
+      const [leftId, rightId] = key.split("__");
+      if (!tablesById.has(leftId) || !tablesById.has(rightId)) return;
+      if (!graph.has(leftId)) graph.set(leftId, new Set());
+      if (!graph.has(rightId)) graph.set(rightId, new Set());
+      graph.get(leftId)!.add(rightId);
+      graph.get(rightId)!.add(leftId);
+    });
+
+    const chains = new Map<string, string[]>();
+    const visit = (selectedIds: Set<string>) => {
+      if (selectedIds.size >= 2) {
+        const canonicalIds = [...selectedIds].sort();
+        chains.set(canonicalIds.join("__"), canonicalIds);
+      }
+
+      const nextIds = new Set<string>();
+      selectedIds.forEach((id) => {
+        graph.get(id)?.forEach((neighbourId) => {
+          if (!selectedIds.has(neighbourId)) nextIds.add(neighbourId);
+        });
+      });
+      nextIds.forEach((nextId) => visit(new Set([...selectedIds, nextId])));
+    };
+
+    tables.forEach((table) => visit(new Set([table.id])));
+
+    return [...chains.values()]
+      .map((tableIds) => tableIds.map((id) => tablesById.get(id)).filter((table): table is EditorItem => Boolean(table)).sort((left, right) => left.label.localeCompare(right.label, "es", { numeric: true, sensitivity: "base" })))
+      .sort((left, right) => {
+        if (left.length !== right.length) return left.length - right.length;
+        const capacityDifference = totalTableCapacity(left) - totalTableCapacity(right);
+        if (capacityDifference !== 0) return capacityDifference;
+        return left.map((table) => table.label).join(" + ").localeCompare(right.map((table) => table.label).join(" + "), "es", { numeric: true, sensitivity: "base" });
+      });
+  }, [activeCombinationKeys, editorItems]);
+
   const connectedTableIds = useMemo(() => {
     if (!selectedItemId || !isTableKind(editorItems.find((item) => item.id === selectedItemId)?.kind || "wall")) return new Set<string>();
     const graph = new Map<string, Set<string>>();
@@ -1743,41 +1787,80 @@ export function SalonPage() {
               </div>
 
               <div className="border-t border-brand-line px-5 py-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-brand-ink">Compatibilidades entre mesas</p>
-                    <p className="mt-1 text-sm text-neutral-500">Editá una mesa para indicar con cuáles se puede unir. Las cadenas se forman automáticamente.</p>
+                <div className="rounded-[20px] border border-[#E4DEF9] bg-[#F7F5FF] px-4 py-3">
+                  <p className="text-sm font-semibold text-brand-ink">Combinaciones de mesas</p>
+                  <p className="mt-1 text-xs leading-5 text-neutral-500">Los vínculos directos se editan abajo. Las cadenas posibles se calculan solas y no modifican el plano.</p>
+                </div>
+
+                <div className="mt-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500">Vínculos directos</p>
+                    <span className="rounded-full bg-[#FFF0E7] px-2.5 py-1 text-xs font-semibold text-[#B65221]">{activeCombinationKeys.length}</span>
+                  </div>
+                  <div className="mt-3 max-h-[22vh] space-y-2 overflow-y-auto pr-1">
+                    {activeCombinationKeys.length ? (
+                      activeCombinationKeys.map((key) => {
+                        const [leftId, rightId] = key.split("__");
+                        const left = editorItems.find((item) => item.id === leftId);
+                        const right = editorItems.find((item) => item.id === rightId);
+                        if (!left || !right) return null;
+                        const combinedSeats = totalTableCapacity([left, right]);
+                        return (
+                          <div key={key} className="flex items-center gap-3 rounded-2xl border border-brand-orange bg-[#FFF8F4] px-3 py-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-semibold text-brand-ink">{left.label} ↔ {right.label}</p>
+                              <p className="mt-0.5 text-xs text-neutral-500">Unión física permitida</p>
+                            </div>
+                            <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-[#B65221]">{combinedSeats} pax</span>
+                            <button type="button" onClick={() => toggleCombination(key)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#F0C7B2] text-[#B65221] transition hover:bg-white" aria-label={`Quitar compatibilidad entre ${left.label} y ${right.label}`} title="Quitar compatibilidad">
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="rounded-2xl border border-dashed border-brand-line px-3 py-4 text-xs leading-5 text-neutral-500">Todavía no hay vínculos. Editá una mesa y elegí con cuáles se puede combinar.</p>
+                    )}
                   </div>
                 </div>
 
-                <div className="mt-4 max-h-[28vh] overflow-y-auto space-y-3 pr-1">
-                  {activeCombinationKeys.length ? (
-                    activeCombinationKeys.map((key) => {
-                      const [leftId, rightId] = key.split("__");
-                      const left = editorItems.find((item) => item.id === leftId);
-                      const right = editorItems.find((item) => item.id === rightId);
-                      if (!left || !right) return null;
-                      const combinedSeats = totalTableCapacity([left, right]);
-                      return (
-                        <div
-                          key={key}
-                          className="flex w-full items-center justify-between gap-3 rounded-[20px] border border-brand-orange bg-[#FFF4ED] px-4 py-4 text-left"
-                        >
-                          <p className="text-sm font-semibold text-brand-ink">
-                            {left.label} ↔ {right.label}
-                          </p>
-                          <p className="mt-1 text-xs text-neutral-500">
-                            Compatibles · hasta {combinedSeats} pax entre ambas
-                          </p>
-                          <button type="button" onClick={() => toggleCombination(key)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#F0C7B2] text-[#B65221] hover:bg-white" aria-label={`Quitar compatibilidad entre ${left.label} y ${right.label}`} title="Quitar compatibilidad">
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <p className="text-sm text-neutral-500">Todavía no hay vínculos. Editá una mesa y elegí con cuáles se puede combinar.</p>
-                  )}
+                <div className="mt-5 border-t border-brand-line pt-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500">Cadenas posibles</p>
+                      <p className="mt-1 text-xs text-neutral-400">Vista informativa de las combinaciones reservables.</p>
+                    </div>
+                    <span className="rounded-full bg-[#EEEAFE] px-2.5 py-1 text-xs font-semibold text-[#5B52B9]">{possibleTableChains.length}</span>
+                  </div>
+                  <div className="mt-3 max-h-[30vh] space-y-4 overflow-y-auto pr-1">
+                    {possibleTableChains.length ? (
+                      [2, 3, 4].map((size) => {
+                        const chains = possibleTableChains.filter((chain) => size === 4 ? chain.length >= 4 : chain.length === size);
+                        if (!chains.length) return null;
+                        return (
+                          <div key={size}>
+                            <p className="mb-2 text-xs font-medium text-neutral-500">{size === 4 ? "4 o más mesas" : `${size} mesas`}</p>
+                            <div className="space-y-2">
+                              {chains.map((chain) => {
+                                const seats = totalTableCapacity(chain);
+                                return (
+                                  <div key={chain.map((table) => table.id).sort().join("__")} className="flex items-center gap-3 rounded-2xl border border-[#E4DEF9] bg-[#FAF9FF] px-3 py-3">
+                                    <div className="min-w-0 flex-1">
+                                      <p className="truncate text-sm font-semibold text-brand-ink">{chain.map((table) => table.label).join(" + ")}</p>
+                                      <p className="mt-0.5 text-xs text-neutral-500">{chain.length} mesas conectadas</p>
+                                    </div>
+                                    <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-[#5B52B9]">{seats} pax</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="rounded-2xl border border-dashed border-[#D9D3F5] bg-[#FAF9FF] px-3 py-4 text-xs leading-5 text-neutral-500">Cuando agregues vínculos directos, acá vas a ver todas las combinaciones que pueden formarse.</p>
+                    )}
+                  </div>
                 </div>
               </div>
             </aside>
