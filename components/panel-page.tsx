@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FoodieSelect } from "./foodie-select";
 import { AppModal } from "./app-modal";
+import { ConfirmDialog } from "./confirm-dialog";
 import { ReservationTableReassignModal } from "./reservation-table-reassign-modal";
 import { WorkspaceShell } from "./workspace-shell";
 import { useWorkspace } from "./workspace-provider";
@@ -124,6 +125,8 @@ export function PanelPage() {
     tableStates,
     setTableState,
     moveReservation,
+    cancelReservation,
+    currentUser,
     reservationForm,
     setReservationForm,
     createReservation
@@ -133,6 +136,11 @@ export function PanelPage() {
   const [openMenuTableId, setOpenMenuTableId] = useState("");
   const [detailReservationId, setDetailReservationId] = useState("");
   const [reassignReservationId, setReassignReservationId] = useState("");
+  const [cancelReservationId, setCancelReservationId] = useState("");
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [detailActionError, setDetailActionError] = useState("");
+  const [detailActionLoading, setDetailActionLoading] = useState(false);
   const [bookingMode, setBookingMode] = useState(false);
   const [bookingTableIds, setBookingTableIds] = useState<string[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
@@ -171,6 +179,13 @@ export function PanelPage() {
   const reassignReservation = reassignReservationId
     ? reservations.find((reservation) => reservation.id === reassignReservationId) || null
     : null;
+  const cancelTarget = cancelReservationId
+    ? reservations.find((reservation) => reservation.id === cancelReservationId) || null
+    : null;
+  const selectedReservationTableIds = new Set(detailReservation?.tables.map((link) => link.table.id) || []);
+  const detailReservationCapacity = totalTableCapacity(detailReservation?.tables.map((link) => link.table) || []);
+  const canCancelReservations = ["restaurant_owner", "restaurant_manager"].includes(currentUser?.role || "");
+  const canOperateDetailReservation = Boolean(detailReservation && !isSelectedRoomBlocked && ["pending", "confirmed", "seated"].includes(detailReservation.status));
   const bookingTables = roomDetail?.tables.filter((table) => bookingTableIds.includes(table.id)) || [];
   const bookingCapacity = totalTableCapacity(bookingTables);
 
@@ -187,6 +202,37 @@ export function PanelPage() {
     if (!reservationForm.fullName.trim() || !reservationForm.phone.trim()) return setCreateError("Completa nombre y teléfono para crear la reserva.");
     if (!Number.isInteger(Number(reservationForm.partySize)) || Number(reservationForm.partySize) < 1) return setCreateError("Ingresá una cantidad válida de comensales.");
     try { await createReservation(); setCreateOpen(false); } catch (error) { setCreateError(error instanceof Error ? error.message : "No se pudo crear la reserva."); }
+  }
+
+  async function moveDetailReservation(action: "check-in" | "release") {
+    if (!detailReservation || detailActionLoading || isSelectedRoomBlocked) return;
+    setDetailActionLoading(true);
+    setDetailActionError("");
+    try {
+      await moveReservation(detailReservation.id, action);
+      setDetailReservationId("");
+      setSelectedTableId("");
+    } catch (error) {
+      setDetailActionError(error instanceof Error ? error.message : "No se pudo actualizar la reserva.");
+    } finally {
+      setDetailActionLoading(false);
+    }
+  }
+
+  async function confirmCancelReservation() {
+    if (!cancelTarget || cancelLoading) return;
+    setCancelLoading(true);
+    setDetailActionError("");
+    try {
+      await cancelReservation(cancelTarget.id, cancelReason);
+      setCancelReservationId("");
+      setCancelReason("");
+      setSelectedTableId("");
+    } catch (error) {
+      setDetailActionError(error instanceof Error ? error.message : "No se pudo cancelar la reserva.");
+    } finally {
+      setCancelLoading(false);
+    }
   }
 
   return (
@@ -293,7 +339,7 @@ export function PanelPage() {
           ) : (
             <div
               ref={layoutWrapRef}
-              onClick={() => { setSelectedTableId(""); setOpenMenuTableId(""); }}
+              onClick={() => { setSelectedTableId(""); setOpenMenuTableId(""); setDetailReservationId(""); }}
               className="relative max-h-[78vh] w-full overflow-scroll overscroll-contain rounded-[24px] border border-brand-line bg-[#F7F4EF] p-3 sm:p-4"
               style={{ scrollbarGutter: "stable both-edges" }}
             >
@@ -340,9 +386,11 @@ export function PanelPage() {
                           if (bookingMode) { setBookingTableIds((current) => current.includes(table.id) ? current.filter((id) => id !== table.id) : [...current, table.id]); return; }
                           setSelectedTableId(table.id);
                           setOpenMenuTableId("");
+                          setDetailActionError("");
+                          if (reservation) setDetailReservationId(reservation.id);
                         }}
                         className={`relative h-full w-full border-2 text-center shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${shapeClass(table.shape)} ${tableStateStyle(status)} ${
-                          selectedTableId === table.id ? "ring-4 ring-[#FFB088]" : bookingTableIds.includes(table.id) ? "ring-4 ring-[#6C63FF]" : ""
+                          selectedReservationTableIds.has(table.id) ? "ring-4 ring-[#FFB088]" : selectedTableId === table.id ? "ring-4 ring-[#FFB088]" : bookingTableIds.includes(table.id) ? "ring-4 ring-[#6C63FF]" : ""
                         }`}
                       >
                         <span
@@ -480,7 +528,7 @@ export function PanelPage() {
               </div>
               <button
                 type="button"
-                onClick={() => setDetailReservationId("")}
+                onClick={() => { setDetailReservationId(""); setSelectedTableId(""); setDetailActionError(""); }}
                 className="rounded-full border border-brand-line px-3 py-1 text-sm text-brand-ink"
               >
                 Cerrar
@@ -493,11 +541,48 @@ export function PanelPage() {
               <p><span className="font-semibold text-brand-ink">Email:</span> {detailReservation.email}</p>
               <p><span className="font-semibold text-brand-ink">Cantidad:</span> {detailReservation.partySize}</p>
               <p><span className="font-semibold text-brand-ink">Estado:</span> {detailReservation.status}</p>
+              <p><span className="font-semibold text-brand-ink">Fecha y hora:</span> {new Date(detailReservation.serviceDate).toLocaleDateString("es-AR")} · {detailReservation.serviceTime}</p>
               <p><span className="font-semibold text-brand-ink">Salon:</span> {detailReservation.room.name}</p>
             </div>
+
+            <div className="mt-5 rounded-2xl border border-brand-orange bg-[#FFF4ED] px-4 py-3 text-sm text-brand-ink">
+              <p className="font-semibold">Mesas de esta reserva</p>
+              <p className="mt-1 text-neutral-600">{detailReservation.tables.map((link) => link.table.label).join(" + ")} · Capacidad: {detailReservationCapacity} pax</p>
+            </div>
+
+            {canOperateDetailReservation ? (
+              <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                {["pending", "confirmed"].includes(detailReservation.status) ? <button type="button" disabled={detailActionLoading} onClick={() => void moveDetailReservation("check-in")} className="rounded-full bg-[#8A5B00] px-4 py-3 text-sm font-medium text-white disabled:opacity-60">{detailActionLoading ? "Actualizando..." : "Check-in"}</button> : null}
+                {detailReservation.status === "seated" ? <button type="button" disabled={detailActionLoading} onClick={() => void moveDetailReservation("release")} className="rounded-full bg-[#146C37] px-4 py-3 text-sm font-medium text-white disabled:opacity-60">{detailActionLoading ? "Actualizando..." : "Liberar mesas"}</button> : null}
+                {["pending", "confirmed"].includes(detailReservation.status) ? <button type="button" disabled={detailActionLoading} onClick={() => { setReassignReservationId(detailReservation.id); setDetailReservationId(""); }} className="rounded-full border border-brand-orange px-4 py-3 text-sm font-medium text-brand-orange disabled:opacity-60">Cambiar mesas</button> : null}
+                {canCancelReservations ? <button type="button" disabled={detailActionLoading} onClick={() => { setCancelReason(""); setDetailActionError(""); setCancelReservationId(detailReservation.id); setDetailReservationId(""); }} className="rounded-full border border-red-200 px-4 py-3 text-sm font-medium text-red-700 disabled:opacity-60">Cancelar reserva</button> : null}
+              </div>
+            ) : null}
+            {isSelectedRoomBlocked ? <p className="mt-4 rounded-2xl border border-[#F1D28A] bg-[#FFF8E1] px-4 py-3 text-sm text-[#8A5B00]">El salón está bloqueado: solo podés consultar la reserva.</p> : null}
+            {detailActionError ? <p className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{detailActionError}</p> : null}
           </div>
         </div>
       ) : null}
+
+      <ConfirmDialog
+        open={Boolean(cancelTarget)}
+        title="Cancelar reserva"
+        description={`Vas a cancelar la reserva de ${cancelTarget?.fullName || "este cliente"} · ${cancelTarget?.code || ""}.`}
+        confirmLabel={cancelLoading ? "Cancelando..." : "Cancelar reserva"}
+        tone="danger"
+        confirmDisabled={cancelLoading}
+        onCancel={() => { if (!cancelLoading) { setCancelReservationId(""); setCancelReason(""); setDetailActionError(""); } }}
+        onConfirm={() => void confirmCancelReservation()}
+      >
+        <div className="space-y-3">
+          <div className="rounded-2xl border border-brand-line bg-[#FCFAF7] p-4 text-sm text-neutral-600">Las mesas asociadas se liberarán y la reserva seguirá disponible en el historial.</div>
+          <label className="block space-y-2 text-sm text-brand-ink">
+            <span className="font-medium">Motivo (opcional)</span>
+            <textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} maxLength={500} rows={3} className="w-full resize-none rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange" placeholder="Dejá una nota para el historial" />
+          </label>
+          {detailActionError ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{detailActionError}</p> : null}
+        </div>
+      </ConfirmDialog>
     </WorkspaceShell>
   );
 }
