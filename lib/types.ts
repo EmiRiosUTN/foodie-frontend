@@ -270,6 +270,12 @@ export type Reservation = {
   notes?: string | null;
   branch?: { id: string; name: string };
   room: { id: string; name: string };
+  eventRoomAssignments?: Array<{
+    roomId: string;
+    allocatedCovers: number;
+    usage: "partial" | "full";
+    room: { id: string; name: string };
+  }>;
   customer?: { id: string; fullName: string; tags: Array<{ id: string; label: string }> } | null;
   tables: Array<{ table: { id: string; label: string; seats: number; metadata?: { capacity?: { maxPartySize?: number } } | null } }>;
 };
@@ -332,6 +338,7 @@ export type RoomDetail = Room & {
 };
 
 export type CreateReservationForm = {
+  reservationKind: "standard" | "event";
   fullName: string;
   phone: string;
   email: string;
@@ -343,6 +350,9 @@ export type CreateReservationForm = {
   notes: string;
   selectedTableIds: string[];
   tableSelectionMode: "automatic" | "configured" | "manual";
+  eventRooms: Array<{ roomId: string; allocatedCovers: string; usage: "partial" | "full" }>;
+  eventExceptionReason: string;
+  eventExceptionConfirmed: boolean;
 };
 
 export type SpecialService = {
@@ -359,6 +369,7 @@ export type SpecialService = {
 };
 
 export const initialReservationForm: CreateReservationForm = {
+  reservationKind: "standard",
   fullName: "",
   phone: "",
   email: "",
@@ -369,7 +380,10 @@ export const initialReservationForm: CreateReservationForm = {
   birthday: "",
   notes: "",
   selectedTableIds: [],
-  tableSelectionMode: "automatic"
+  tableSelectionMode: "automatic",
+  eventRooms: [],
+  eventExceptionReason: "",
+  eventExceptionConfirmed: false
 };
 
 export type ManualReservationTableOption = {

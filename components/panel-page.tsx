@@ -152,12 +152,14 @@ export function PanelPage() {
   const selectedRoom = selectedBranch?.rooms.find((room) => room.id === selectedRoomId) || null;
   const selectedRoomBlock = roomBlocks.find((block) => block.roomId === selectedRoomId) || null;
   const isSelectedRoomBlocked = Boolean(selectedRoomBlock);
+  const selectedRoomEvent = reservations.find((reservation) => ["pending", "confirmed", "seated"].includes(reservation.status) && reservation.eventRoomAssignments?.some((assignment) => assignment.roomId === selectedRoomId)) || null;
+  const isSelectedRoomUnavailable = isSelectedRoomBlocked || Boolean(selectedRoomEvent);
 
   useEffect(() => {
-    if (!isSelectedRoomBlocked) return;
+    if (!isSelectedRoomUnavailable) return;
     setSelectedTableId("");
     setOpenMenuTableId("");
-  }, [isSelectedRoomBlocked]);
+  }, [isSelectedRoomUnavailable]);
 
   const tableStateMap = useMemo(() => {
     return new Map(tableStates.map((state) => [state.tableId, state]));
@@ -191,6 +193,10 @@ export function PanelPage() {
   const bookingCapacity = totalTableCapacity(bookingTables);
 
   function startReservation(tableIds: string[]) {
+    if (selectedRoomEvent) {
+      setCreateError("Este salón está asignado a un evento para el servicio seleccionado.");
+      return;
+    }
     setReservationForm((current) => ({ ...current, selectedTableIds: tableIds, tableSelectionMode: "manual", serviceTime: selectedSpecialService?.startTime || current.serviceTime }));
     setBookingTableIds([]);
     setBookingMode(false);
@@ -344,11 +350,11 @@ export function PanelPage() {
               className="relative max-h-[78vh] w-full overflow-scroll overscroll-contain rounded-[24px] border border-brand-line bg-[#F7F4EF] p-3 sm:p-4"
               style={{ scrollbarGutter: "stable both-edges" }}
             >
-              {isSelectedRoomBlocked ? (
+              {isSelectedRoomUnavailable ? (
                 <div className="pointer-events-none sticky top-0 z-30 flex justify-center px-3 pt-3">
                   <div className="rounded-2xl border border-[#D39C11] bg-[#FFF8E1]/95 px-5 py-3 text-center shadow-lg backdrop-blur-sm">
-                    <p className="text-sm font-bold text-[#8A5B00]">Salón bloqueado para este turno</p>
-                    <p className="mt-1 text-xs text-[#8A5B00]">{selectedRoomBlock?.reason || "No se pueden operar mesas mientras el salón esté cerrado."}</p>
+                    <p className="text-sm font-bold text-[#8A5B00]">{selectedRoomEvent ? "Salón asignado a un evento" : "Salón bloqueado para este turno"}</p>
+                    <p className="mt-1 text-xs text-[#8A5B00]">{selectedRoomEvent ? `${selectedRoomEvent.fullName} · ${selectedRoomEvent.partySize} cubiertos · ${selectedRoomEvent.code}` : selectedRoomBlock?.reason || "No se pueden operar mesas mientras el salón esté cerrado."}</p>
                   </div>
                 </div>
               ) : null}
@@ -543,12 +549,12 @@ export function PanelPage() {
               <p><span className="font-semibold text-brand-ink">Cantidad:</span> {detailReservation.partySize}</p>
               <p><span className="font-semibold text-brand-ink">Estado:</span> {detailReservation.status}</p>
               <p><span className="font-semibold text-brand-ink">Fecha y hora:</span> {new Date(detailReservation.serviceDate).toLocaleDateString("es-AR")} · {detailReservation.serviceTime}</p>
-              <p><span className="font-semibold text-brand-ink">Salon:</span> {detailReservation.room.name}</p>
+              <p><span className="font-semibold text-brand-ink">Salon:</span> {detailReservation.eventRoomAssignments?.length ? detailReservation.eventRoomAssignments.map((assignment) => `${assignment.room.name} (${assignment.allocatedCovers} pax)`).join(" · ") : detailReservation.room.name}</p>
             </div>
 
             <div className="mt-5 rounded-2xl border border-brand-orange bg-[#FFF4ED] px-4 py-3 text-sm text-brand-ink">
-              <p className="font-semibold">Mesas de esta reserva</p>
-              <p className="mt-1 text-neutral-600">{detailReservation.tables.map((link) => link.table.label).join(" + ")} · Capacidad: {detailReservationCapacity} pax</p>
+              <p className="font-semibold">{detailReservation.eventRoomAssignments?.length ? "Salones de este evento" : "Mesas de esta reserva"}</p>
+              <p className="mt-1 text-neutral-600">{detailReservation.eventRoomAssignments?.length ? detailReservation.eventRoomAssignments.map((assignment) => `${assignment.room.name}: ${assignment.allocatedCovers} pax (${assignment.usage === "full" ? "total" : "parcial"})`).join(" · ") : `${detailReservation.tables.map((link) => link.table.label).join(" + ")} · Capacidad: ${detailReservationCapacity} pax`}</p>
             </div>
 
             {canOperateDetailReservation ? (

@@ -35,7 +35,10 @@ function safeFilename(value: string) {
 
 function reservationLocation(reservation: Reservation) {
   const tables = reservation.tables.map((item) => item.table.label).join(" + ");
-  return `${reservation.room?.name || "Sin salón"}${tables ? ` · ${tables}` : ""}`;
+  const rooms = reservation.eventRoomAssignments?.length
+    ? reservation.eventRoomAssignments.map((assignment) => `${assignment.room.name} (${assignment.allocatedCovers} pax)`).join(" + ")
+    : reservation.room?.name || "Sin salón";
+  return `${rooms}${tables ? ` · ${tables}` : ""}`;
 }
 
 function reservationNotes(reservation: Reservation) {

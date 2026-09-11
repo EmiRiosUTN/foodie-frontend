@@ -553,29 +553,42 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function createReservation() {
-    if (!selectedBranchId || !selectedRoomId) {
+    if (!selectedBranchId || (reservationForm.reservationKind === "standard" && !selectedRoomId)) {
       const message = "Selecciona una sucursal y un salon antes de crear la reserva";
       setFeedback(message);
       throw new Error(message);
     }
     try {
-      await api("/restaurant/reservations", {
+      const isEvent = reservationForm.reservationKind === "event";
+      await api(isEvent ? "/restaurant/reservations/events" : "/restaurant/reservations", {
         method: "POST",
         body: JSON.stringify({
           branchId: selectedBranchId,
-          roomId: selectedRoomId,
           fullName: reservationForm.fullName,
           phone: reservationForm.phone,
           email: reservationForm.email,
           partySize: Number(reservationForm.partySize),
           serviceDate: selectedDate,
           serviceTime: reservationForm.serviceTime,
-          preferredZone: reservationForm.preferredZone || undefined,
-          preferredTags: reservationForm.preferredTags.split(",").map((item) => item.trim()).filter(Boolean),
-          birthday: reservationForm.birthday || undefined,
+          ...(isEvent
+            ? {
+                rooms: reservationForm.eventRooms.map((room) => ({
+                  roomId: room.roomId,
+                  allocatedCovers: Number(room.allocatedCovers),
+                  usage: room.usage
+                })),
+                exceptionReason: reservationForm.eventExceptionReason || undefined,
+                exceptionConfirmed: reservationForm.eventExceptionConfirmed
+              }
+            : {
+                roomId: selectedRoomId,
+                preferredZone: reservationForm.preferredZone || undefined,
+                preferredTags: reservationForm.preferredTags.split(",").map((item) => item.trim()).filter(Boolean),
+                birthday: reservationForm.birthday || undefined,
+                tableIds: reservationForm.selectedTableIds.length ? reservationForm.selectedTableIds : undefined,
+                manualTableSelection: reservationForm.tableSelectionMode === "manual" || undefined
+              }),
           notes: reservationForm.notes || undefined,
-          tableIds: reservationForm.selectedTableIds.length ? reservationForm.selectedTableIds : undefined,
-          manualTableSelection: reservationForm.tableSelectionMode === "manual" || undefined
         })
       });
       setReservationForm(initialReservationForm);

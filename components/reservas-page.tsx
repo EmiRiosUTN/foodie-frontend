@@ -56,6 +56,11 @@ function reservationScheduleLabel(reservation: Reservation) {
   return `${reservation.specialService?.label ? `${reservation.specialService.label} · ` : ""}${reservation.serviceTime}${duration}`;
 }
 
+function reservationRoomsLabel(reservation: Reservation) {
+  if (!reservation.eventRoomAssignments?.length) return reservation.room.name;
+  return reservation.eventRoomAssignments.map((assignment) => `${assignment.room.name} (${assignment.allocatedCovers})`).join(" · ");
+}
+
 export function ReservasPage() {
   const {
     reservations,
@@ -117,6 +122,12 @@ export function ReservasPage() {
   const selectedBranch = bootstrap?.branches.find((branch) => branch.id === selectedBranchId);
   const canDeleteReservations = ["restaurant_owner", "restaurant_manager"].includes(currentUser?.role || "");
   const canCancelReservations = canDeleteReservations;
+  const canCreateEvents = ["restaurant_owner", "restaurant_manager", "events"].includes(currentUser?.role || "");
+  const eventAllocatedCovers = reservationForm.eventRooms.reduce((total, room) => total + (Number(room.allocatedCovers) || 0), 0);
+  const hasEventCapacityException = reservationForm.eventRooms.some((assignment) => {
+    const room = selectedBranch?.rooms.find((item) => item.id === assignment.roomId);
+    return Boolean(room && Number(assignment.allocatedCovers) > totalTableCapacity(room.tables));
+  });
   const manualSelectedTables = manualTableOptions.filter((table) => reservationForm.selectedTableIds.includes(table.id));
   const manualSelectedCapacity = totalTableCapacity(manualSelectedTables);
   const manualTableOptionsById = useMemo(() => new Map(manualTableOptions.map((table) => [table.id, table])), [manualTableOptions]);
@@ -137,7 +148,7 @@ export function ReservasPage() {
 
   useEffect(() => {
     const selectionMode = reservationForm.tableSelectionMode;
-    if (!createOpen || selectionMode === "automatic") {
+    if (!createOpen || reservationForm.reservationKind === "event" || selectionMode === "automatic") {
       setTableOptions([]);
       setManualTableOptions([]);
       setConfiguredOptionsLoading(false);
@@ -198,7 +209,7 @@ export function ReservasPage() {
         .finally(() => { if (active) setManualTablesLoading(false); });
     }
     return () => { active = false; };
-  }, [createOpen, selectedBranchId, selectedRoomId, selectedDate, reservationForm.partySize, reservationForm.serviceTime, reservationForm.preferredZone, reservationForm.tableSelectionMode, loadAvailableReservationTableOptions, loadAvailableManualReservationTables, setReservationForm, tableOptionsRetry]);
+  }, [createOpen, selectedBranchId, selectedRoomId, selectedDate, reservationForm.partySize, reservationForm.serviceTime, reservationForm.preferredZone, reservationForm.tableSelectionMode, reservationForm.reservationKind, loadAvailableReservationTableOptions, loadAvailableManualReservationTables, setReservationForm, tableOptionsRetry]);
 
   const sortedReservations = useMemo(
     () =>
@@ -226,7 +237,21 @@ export function ReservasPage() {
       setFormError("Ingresa el horario de la reserva.");
       return;
     }
-    if (reservationForm.tableSelectionMode === "manual" && !reservationForm.selectedTableIds.length) {
+    if (reservationForm.reservationKind === "event") {
+      if (!reservationForm.eventRooms.length) {
+        setFormError("ElegÃ­ al menos un salÃ³n para el evento.");
+        return;
+      }
+      if (eventAllocatedCovers !== partySize) {
+        setFormError("Los cubiertos distribuidos entre salones deben coincidir con el total del evento.");
+        return;
+      }
+      if (hasEventCapacityException && (!reservationForm.eventExceptionReason.trim() || !reservationForm.eventExceptionConfirmed)) {
+        setFormError("Confirmá la excepción e indicá el motivo para superar la capacidad nominal.");
+        return;
+      }
+    }
+    if (reservationForm.reservationKind === "standard" && reservationForm.tableSelectionMode === "manual" && !reservationForm.selectedTableIds.length) {
       setFormError("Elegí al menos una mesa libre o volvé a la asignación automática.");
       return;
     }
@@ -302,7 +327,7 @@ export function ReservasPage() {
         reservation.email,
         reservation.partySize,
         reservation.branch?.name || "",
-        reservation.room.name,
+        reservationRoomsLabel(reservation),
         reservation.tables.map((item) => item.table.label).join(" | "),
         (reservation as Reservation & { notes?: string | null }).notes || ""
       ])
@@ -474,7 +499,7 @@ export function ReservasPage() {
                       </p>
                     </div>
                     <div className="min-w-0 text-sm text-neutral-500">
-                      <p className="truncate">{reservation.room.name}</p>
+                      <p className="truncate">{reservationRoomsLabel(reservation)}</p>
                       <p className="truncate text-xs text-neutral-400">{reservation.tables.map((item) => item.table.label).join(", ") || "Sin asignacion"}{reservation.tables.length > 1 ? ` · Capacidad: ${totalTableCapacity(reservation.tables.map((item) => item.table))} pax` : ""}</p>
                     </div>
                     <div className="text-sm font-semibold text-brand-ink">{reservation.code}</div>
@@ -531,7 +556,7 @@ export function ReservasPage() {
                         <p className="truncate text-base font-semibold text-brand-ink">{reservation.fullName}</p>
                         <span className="shrink-0 rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-neutral-600">{reservationStatusLabel(reservation.status)}</span>
                       </div>
-                      <p className="mt-1 text-sm text-neutral-600">{reservation.room.name} · {reservation.tables.map((item) => item.table.label).join(", ") || "Sin mesa"}</p>
+                      <p className="mt-1 text-sm text-neutral-600">{reservationRoomsLabel(reservation)} · {reservation.tables.map((item) => item.table.label).join(", ") || (reservation.eventRoomAssignments?.length ? "Evento" : "Sin mesa")}</p>
                       <p className="mt-1 text-sm text-neutral-500">{reservation.partySize} cubiertos</p>
                       <p className="mt-2 text-[11px] uppercase tracking-[0.14em] text-neutral-400">{reservation.code}{reservation.durationMinutes ? ` · ${reservation.durationMinutes} min` : ""}</p>
                     </div>
@@ -688,7 +713,7 @@ export function ReservasPage() {
                     <span className="min-w-0 truncate font-semibold text-brand-ink">{reservation.fullName}</span>
                     <span className="text-neutral-500">{reservation.partySize}</span>
                     <span className="text-neutral-500">{reservation.status}</span>
-                    <span className="min-w-0 truncate text-neutral-500">{reservation.room.name}</span>
+                    <span className="min-w-0 truncate text-neutral-500">{reservationRoomsLabel(reservation)}</span>
                     <span className="font-semibold text-brand-ink">{reservation.code}</span>
                     <span className="flex flex-wrap gap-2">{canCancelReservations && ["pending", "confirmed", "seated"].includes(reservation.status) ? <button type="button" onClick={() => { setCancelError(""); setCancelReason(""); setCancelTarget(reservation); }} className="inline-flex items-center gap-1 rounded-full border border-red-200 px-3 py-2 text-xs font-medium text-red-700"><XCircle className="h-3.5 w-3.5" />Cancelar</button> : null}{canDeleteReservations && reservation.status === "cancelled" ? <button type="button" onClick={() => { setDeleteError(""); setDeleteTarget(reservation); }} className="inline-flex items-center gap-1 rounded-full border border-red-200 px-3 py-2 text-xs font-medium text-red-700"><Trash2 className="h-3.5 w-3.5" />Eliminar</button> : null}</span>
                   </div>
@@ -709,7 +734,7 @@ export function ReservasPage() {
                 </div>
                 <span className="shrink-0 rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-medium text-neutral-600">{reservation.status}</span>
               </div>
-              <p className="text-sm text-neutral-500">{reservation.partySize} cubiertos · {reservation.room.name}</p>
+              <p className="text-sm text-neutral-500">{reservation.partySize} cubiertos · {reservationRoomsLabel(reservation)}</p>
               <p className="break-words text-xs font-semibold uppercase tracking-[0.12em] text-neutral-400">Código {reservation.code}</p>
               {canCancelReservations && ["pending", "confirmed", "seated"].includes(reservation.status) ? <button type="button" onClick={() => { setCancelError(""); setCancelReason(""); setCancelTarget(reservation); }} className="mt-2 inline-flex items-center gap-1 rounded-full border border-red-200 px-3 py-2 text-xs font-medium text-red-700"><XCircle className="h-3.5 w-3.5" />Cancelar</button> : null}
               {canDeleteReservations && reservation.status === "cancelled" ? <button type="button" onClick={() => { setDeleteError(""); setDeleteTarget(reservation); }} className="mt-2 inline-flex items-center gap-1 rounded-full border border-red-200 px-3 py-2 text-xs font-medium text-red-700"><Trash2 className="h-3.5 w-3.5" />Eliminar</button> : null}
@@ -851,6 +876,33 @@ export function ReservasPage() {
               className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
             />
           </label>
+          {canCreateEvents ? <div className="space-y-2 text-sm text-brand-ink md:col-span-2">
+            <span className="font-medium">Tipo de reserva</span>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button type="button" onClick={() => setReservationForm((current) => ({ ...current, reservationKind: "standard", eventRooms: [], eventExceptionReason: "", eventExceptionConfirmed: false }))} className={`rounded-2xl border px-4 py-3 text-left ${reservationForm.reservationKind === "standard" ? "border-brand-orange bg-[#FFF4ED]" : "border-brand-line bg-white"}`}>
+                <span className="block font-semibold">Reserva estándar</span><span className="text-xs text-neutral-500">Usa las reglas y mesas habituales.</span>
+              </button>
+              <button type="button" onClick={() => setReservationForm((current) => ({ ...current, reservationKind: "event", selectedTableIds: [], tableSelectionMode: "automatic", eventRooms: current.eventRooms.length ? current.eventRooms : [] }))} className={`rounded-2xl border px-4 py-3 text-left ${reservationForm.reservationKind === "event" ? "border-brand-orange bg-[#FFF4ED]" : "border-brand-line bg-white"}`}>
+                <span className="block font-semibold">Reserva de evento</span><span className="text-xs text-neutral-500">Distribuí grupos grandes entre varios salones.</span>
+              </button>
+            </div>
+          </div> : null}
+          {reservationForm.reservationKind === "event" ? <div className="space-y-3 rounded-2xl border border-brand-orange bg-[#FFF9F5] p-4 text-sm text-brand-ink md:col-span-2">
+            <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="font-semibold">Salones del evento</p><p className="text-xs text-neutral-600">Cada salón queda bloqueado para reservas normales en este servicio.</p></div><span className={`rounded-full px-3 py-1 text-xs font-semibold ${eventAllocatedCovers === Number(reservationForm.partySize) ? "bg-emerald-100 text-emerald-700" : "bg-white text-brand-orange"}`}>{eventAllocatedCovers} / {reservationForm.partySize || 0} pax</span></div>
+            <div className="space-y-2">
+              {(selectedBranch?.rooms || []).map((room) => {
+                const assignment = reservationForm.eventRooms.find((item) => item.roomId === room.id);
+                const capacity = totalTableCapacity(room.tables);
+                return <div key={room.id} className={`rounded-xl border p-3 ${assignment ? "border-brand-orange bg-white" : "border-brand-line bg-white/60"}`}>
+                  <div className="flex items-center gap-3"><input aria-label={`Incluir ${room.name}`} type="checkbox" checked={Boolean(assignment)} onChange={(event) => setReservationForm((current) => ({ ...current, eventRooms: event.target.checked ? [...current.eventRooms, { roomId: room.id, allocatedCovers: "", usage: "partial" }] : current.eventRooms.filter((item) => item.roomId !== room.id) }))} /><div className="min-w-0 flex-1"><p className="font-semibold">{room.name}</p><p className="text-xs text-neutral-500">Capacidad nominal: {capacity} pax</p></div></div>
+                  {assignment ? <div className="mt-3 grid gap-2 sm:grid-cols-2"><label className="space-y-1"><span className="text-xs font-medium">Cubiertos en este salón</span><input type="number" min={1} value={assignment.allocatedCovers} onChange={(event) => setReservationForm((current) => ({ ...current, eventRooms: current.eventRooms.map((item) => item.roomId === room.id ? { ...item, allocatedCovers: event.target.value } : item) }))} className="w-full rounded-xl border border-brand-line px-3 py-2" /></label><label className="space-y-1"><span className="text-xs font-medium">Uso físico</span><FoodieSelect value={assignment.usage} onChange={(event) => setReservationForm((current) => ({ ...current, eventRooms: current.eventRooms.map((item) => item.roomId === room.id ? { ...item, usage: event.target.value as "partial" | "full" } : item) }))}><option value="partial">Parcial</option><option value="full">Total</option></FoodieSelect></label></div> : null}
+                </div>;
+              })}
+            </div>
+            {hasEventCapacityException ? <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">La distribución supera la capacidad nominal de uno o más salones. Podés continuar solo con una excepción autorizada.</p> : null}
+            <label className="block space-y-1"><span className="text-xs font-medium">Motivo de excepción</span><textarea value={reservationForm.eventExceptionReason} onChange={(event) => setReservationForm((current) => ({ ...current, eventExceptionReason: event.target.value }))} placeholder="Obligatorio si se usa un salón bloqueado o se supera su capacidad." className="h-20 w-full rounded-xl border border-brand-line px-3 py-2" /></label>
+            <label className="flex items-start gap-2 rounded-xl border border-brand-line bg-white px-3 py-2 text-xs text-neutral-700"><input type="checkbox" checked={reservationForm.eventExceptionConfirmed} onChange={(event) => setReservationForm((current) => ({ ...current, eventExceptionConfirmed: event.target.checked }))} /><span>Confirmo que revisé los bloqueos y la capacidad de los salones. Si existe una excepción, se guardará con el motivo indicado.</span></label>
+          </div> : <>
           <label className="space-y-2 text-sm text-brand-ink md:col-span-2">
             <span className="font-medium">Salón</span>
             <FoodieSelect
@@ -934,6 +986,7 @@ export function ReservasPage() {
               </div>
             ) : null}
           </div>
+          </>}
           <label className="space-y-2 text-sm text-brand-ink md:col-span-2">
             <span className="font-medium">Cumpleanos</span>
             <input
