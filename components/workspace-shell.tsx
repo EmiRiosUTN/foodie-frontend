@@ -1,10 +1,10 @@
 "use client";
 
-import { ChevronDown, Info } from "lucide-react";
+import { ChevronDown, Info, Menu, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { getEnabledChatModules } from "./chat/chat-module-registry";
 import { StatusAlert } from "./status-alert";
 import { useWorkspace } from "./workspace-provider";
@@ -81,6 +81,7 @@ export function WorkspaceShell({
 }) {
   const pathname = usePathname();
   const [configurationOpen, setConfigurationOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { bootstrap, chatSession, currentUser, feedback, userName, logout, selectedBranchId } = useWorkspace();
 
   const branch = bootstrap?.branches.find((item) => item.id === selectedBranchId);
@@ -103,10 +104,25 @@ const configurationItems: NavigationItem["children"] = [{ href: "/configuracion/
   const workspaceLabel = currentUser?.scope === "platform" ? "Administracion" : "Operacion";
   const workspaceName = currentUser?.scope === "platform" ? "Foodie AI" : bootstrap?.name || "Restaurante";
   const workspaceImage = currentUser?.scope === "restaurant" ? bootstrap?.profileImageUrl : "";
+  const mobileNavigationItems = navigationItems.flatMap((item) => item.children ? item.children : [item]);
+  const activeMobileNavigationItem = mobileNavigationItems.find((item) => pathname === item.href || (item.href !== "/chat" && pathname.startsWith(`${item.href}/`)));
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileMenuOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [mobileMenuOpen]);
 
   return (
     <div className="h-screen overflow-hidden bg-black">
-      <div className="grid h-screen bg-[radial-gradient(circle_at_85%_10%,rgba(0,0,0,0.85)_0,rgba(0,0,0,0.94)_31%,transparent_52%),linear-gradient(135deg,#F4511E_0%,#7A372C_42%,#050505_76%)] xl:grid-cols-[240px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)]">
+      <div className="grid h-screen overflow-x-hidden bg-[radial-gradient(circle_at_85%_10%,rgba(0,0,0,0.85)_0,rgba(0,0,0,0.94)_31%,transparent_52%),linear-gradient(135deg,#F4511E_0%,#7A372C_42%,#050505_76%)] xl:grid-cols-[240px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)]">
         <aside className="hidden h-screen overflow-hidden border-r border-white/10 bg-[#1F1F21] text-white xl:block">
           <div className="flex h-full flex-col px-10 py-14 xl:px-6 xl:py-8 2xl:px-10 2xl:py-14">
             <div className="flex items-center gap-4 xl:gap-3 2xl:gap-4">
@@ -149,8 +165,8 @@ const configurationItems: NavigationItem["children"] = [{ href: "/configuracion/
           </div>
         </aside>
 
-        <main className="h-screen min-w-0 overflow-y-auto px-4 py-4 sm:px-5 sm:py-6 md:px-8 xl:px-8 xl:py-8 2xl:px-20 2xl:py-28">
-          <div className="mb-5 rounded-[26px] border border-white/10 bg-[#1F1F21] p-4 text-white shadow-[0_18px_40px_rgba(0,0,0,0.18)] xl:hidden">
+        <main className="h-screen min-w-0 overflow-x-hidden overflow-y-auto px-4 py-4 sm:px-5 sm:py-6 md:px-8 xl:px-8 xl:py-8 2xl:px-20 2xl:py-28">
+          <div className="relative z-40 mb-5 rounded-[26px] border border-white/10 bg-[#1F1F21] p-4 text-white shadow-[0_18px_40px_rgba(0,0,0,0.18)] xl:hidden">
             <div className="flex items-center gap-3">
               <RestaurantAvatar image={workspaceImage} name={workspaceName} size="md" />
               <div className="min-w-0">
@@ -162,22 +178,27 @@ const configurationItems: NavigationItem["children"] = [{ href: "/configuracion/
               </button>
             </div>
 
-            <nav className="mt-4 flex gap-2 overflow-x-auto pb-1">
-              {navigationItems.flatMap((item) => item.children ? item.children : [item]).map((item) => {
-                const active = pathname === item.href || (item.href !== "/chat" && pathname.startsWith(`${item.href}/`));
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`shrink-0 rounded-full px-4 py-2 text-sm font-bold transition ${
-                      active ? "bg-brand-orange text-white" : "bg-white/10 text-white hover:bg-white/15"
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen((current) => !current)}
+              aria-expanded={mobileMenuOpen}
+              aria-controls="mobile-workspace-menu"
+              className="mt-4 flex w-full items-center justify-between rounded-2xl bg-white/10 px-4 py-3 text-left text-sm font-bold text-white"
+            >
+              <span className="truncate">{activeMobileNavigationItem?.label || "Menú"}</span>
+              {mobileMenuOpen ? <X className="h-4 w-4 shrink-0" /> : <Menu className="h-4 w-4 shrink-0" />}
+            </button>
+            {mobileMenuOpen ? (
+              <>
+                <button type="button" aria-label="Cerrar menú" onClick={() => setMobileMenuOpen(false)} className="fixed inset-0 z-30 cursor-default bg-black/45" />
+                <nav id="mobile-workspace-menu" className="absolute left-0 right-0 top-full z-50 mt-3 rounded-[22px] border border-white/10 bg-[#1F1F21] p-2 shadow-[0_20px_45px_rgba(0,0,0,0.4)]">
+                  {mobileNavigationItems.map((item) => {
+                    const active = pathname === item.href || (item.href !== "/chat" && pathname.startsWith(`${item.href}/`));
+                    return <Link key={item.href} href={item.href} onClick={() => setMobileMenuOpen(false)} className={`block rounded-2xl px-4 py-3 text-sm font-bold transition ${active ? "bg-brand-orange text-white" : "text-white hover:bg-white/10"}`}>{item.label}</Link>;
+                  })}
+                </nav>
+              </>
+            ) : null}
           </div>
 
           <div className="min-h-[70vh] rounded-[28px] border border-white/70 bg-white p-4 shadow-[0_32px_70px_rgba(0,0,0,0.18)] sm:p-5 md:p-8 xl:rounded-[32px] xl:p-6 2xl:rounded-[40px] 2xl:p-8">

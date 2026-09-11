@@ -1,8 +1,9 @@
 "use client";
 
-import { CalendarDays, CheckCircle2, Clock3, Download, Plus, Printer, Search, Trash2, Users, XCircle } from "lucide-react";
+import { CalendarDays, CheckCircle2, Clock3, Download, Plus, Search, Trash2, Users, XCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ManualReservationTableOption, Reservation } from "../lib/types";
+import { downloadOfflineBackupPdf, type OfflineBackup } from "../lib/offline-backup";
 import { AppModal } from "./app-modal";
 import { ConfirmDialog } from "./confirm-dialog";
 import { FoodieSelect } from "./foodie-select";
@@ -91,6 +92,8 @@ export function ReservasPage() {
   const [cancelReason, setCancelReason] = useState("");
   const [cancelError, setCancelError] = useState("");
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [backupError, setBackupError] = useState("");
   const zonePills = roomDetail?.zones || [];
   const selectedBranch = bootstrap?.branches.find((branch) => branch.id === selectedBranchId);
   const canDeleteReservations = ["restaurant_owner", "restaurant_manager"].includes(currentUser?.role || "");
@@ -287,11 +290,24 @@ export function ReservasPage() {
     );
   };
 
-  const printDailyReservations = () => {
-    if (!selectedBranchId || !selectedDate) return;
-    const query = new URLSearchParams({ branchId: selectedBranchId, date: selectedDate, turn: selectedTurn });
+  const downloadDailyBackup = async () => {
+    if (!selectedBranchId || !selectedDate || backupLoading) return;
+    setBackupLoading(true);
+    setBackupError("");
+    const token = window.localStorage.getItem("foodie_token");
+    const query = new URLSearchParams({ branchId: selectedBranchId, serviceDate: selectedDate, turn: selectedTurn });
     if (selectedSpecialServiceId) query.set("specialServiceId", selectedSpecialServiceId);
-    window.open(`/imprimir-reservas?${query.toString()}`, "_blank", "noopener,noreferrer");
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1"}/restaurant/reservations/offline-backup?${query.toString()}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      if (!response.ok) throw new Error(response.status === 403 ? "No tenés permiso para descargar este backup." : "No se pudo preparar el backup. Revisá tu conexión y reintentá.");
+      downloadOfflineBackupPdf(await response.json() as OfflineBackup);
+    } catch (error) {
+      setBackupError(error instanceof Error ? error.message : "No se pudo preparar el backup.");
+    } finally {
+      setBackupLoading(false);
+    }
   };
 
   return (
@@ -321,21 +337,23 @@ export function ReservasPage() {
       </div>
 
       {activeView === "turno" ? (
-      <section className="overflow-hidden rounded-[26px] border border-brand-line bg-white">
+      <>
+      <section className="overflow-hidden rounded-[26px] border border-brand-line bg-white pb-24 md:pb-0">
         <div className="flex flex-col gap-4 border-b border-brand-line px-5 py-5 md:px-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-orange">Turno activo</p>
               <h2 className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-brand-ink">Reservas del turno</h2>
             </div>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row">
               <button
                 type="button"
-                onClick={printDailyReservations}
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-brand-line px-5 py-3 text-sm font-medium text-brand-ink"
+                onClick={() => void downloadDailyBackup()}
+                disabled={backupLoading}
+                className="hidden items-center justify-center gap-2 rounded-full border border-brand-line px-5 py-3 text-sm font-medium text-brand-ink md:inline-flex"
               >
-                <Printer className="h-4 w-4" />
-                Backup offline
+                <Download className="h-4 w-4" />
+                {backupLoading ? "Preparando PDF..." : "Descargar PDF"}
               </button>
               <button
                 type="button"
@@ -343,13 +361,14 @@ export function ReservasPage() {
                   setFormError("");
                   setCreateOpen(true);
                 }}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-orange px-5 py-3 text-sm font-medium text-white"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-brand-orange px-5 py-3 text-sm font-medium text-white md:w-auto"
               >
                 <Plus className="h-4 w-4" />
                 Nueva reserva
               </button>
             </div>
           </div>
+          {backupError ? <p className="hidden text-sm text-red-600 md:block" role="alert">{backupError}</p> : null}
 
           <div className="grid gap-3 md:grid-cols-[minmax(0,220px)_180px_minmax(0,240px)] md:items-end">
             <label className="space-y-2 text-sm text-brand-ink">
@@ -486,7 +505,7 @@ export function ReservasPage() {
                     <div className="shrink-0 text-xs font-medium text-neutral-500">{reservation.status}</div>
                   </div>
                   <p className="mt-3 text-xs text-neutral-400">{reservation.tables.map((item) => item.table.label).join(", ") || "Sin asignacion"}{reservation.tables.length > 1 ? ` · Capacidad: ${totalTableCapacity(reservation.tables.map((item) => item.table))} pax` : ""}</p>
-                  <div className="mt-4 flex gap-2">
+                  <div className="mt-4 grid grid-cols-2 gap-2">
                     {reservation.status !== "cancelled" ? <>
                       <button
                         type="button"
@@ -539,6 +558,19 @@ export function ReservasPage() {
           </div>
         )}
       </section>
+      <div className="fixed inset-x-4 bottom-4 z-40 pb-[env(safe-area-inset-bottom)] md:hidden">
+        {backupError ? <p className="mb-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 shadow-lg" role="alert">{backupError}</p> : null}
+        <button
+          type="button"
+          onClick={() => void downloadDailyBackup()}
+          disabled={backupLoading}
+          className="flex w-full items-center justify-center gap-2 rounded-full bg-brand-orange px-5 py-4 text-sm font-bold text-white shadow-[0_14px_30px_rgba(234,88,12,0.32)] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <Download className="h-5 w-5" />
+          {backupLoading ? "Preparando PDF..." : "Guardar reservas PDF"}
+        </button>
+      </div>
+      </>
       ) : null}
 
       {activeView === "historico" ? (
@@ -628,7 +660,7 @@ export function ReservasPage() {
           {historyError ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{historyError}</p> : null}
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="hidden overflow-x-auto md:block">
           <div className="min-w-[920px]">
             <div className="grid grid-cols-[120px_120px_minmax(0,1.5fr)_110px_110px_minmax(0,1fr)_130px_110px] gap-4 px-6 py-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
               <span>Fecha</span>
@@ -659,6 +691,23 @@ export function ReservasPage() {
               )}
             </div>
           </div>
+        </div>
+        <div className="divide-y divide-brand-line md:hidden">
+          {historyRows.length ? historyRows.map((reservation) => (
+            <article key={reservation.id} className="space-y-2 px-5 py-4">
+              <div className="flex min-w-0 items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-brand-ink">{reservation.fullName}</p>
+                  <p className="mt-1 text-sm text-neutral-500">{formatDate(reservation.serviceDate)} · {reservation.serviceTime}</p>
+                </div>
+                <span className="shrink-0 rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-medium text-neutral-600">{reservation.status}</span>
+              </div>
+              <p className="text-sm text-neutral-500">{reservation.partySize} cubiertos · {reservation.room.name}</p>
+              <p className="break-words text-xs font-semibold uppercase tracking-[0.12em] text-neutral-400">Código {reservation.code}</p>
+              {canCancelReservations && ["pending", "confirmed", "seated"].includes(reservation.status) ? <button type="button" onClick={() => { setCancelError(""); setCancelReason(""); setCancelTarget(reservation); }} className="mt-2 inline-flex items-center gap-1 rounded-full border border-red-200 px-3 py-2 text-xs font-medium text-red-700"><XCircle className="h-3.5 w-3.5" />Cancelar</button> : null}
+              {canDeleteReservations && reservation.status === "cancelled" ? <button type="button" onClick={() => { setDeleteError(""); setDeleteTarget(reservation); }} className="mt-2 inline-flex items-center gap-1 rounded-full border border-red-200 px-3 py-2 text-xs font-medium text-red-700"><Trash2 className="h-3.5 w-3.5" />Eliminar</button> : null}
+            </article>
+          )) : <div className="px-5 py-10 text-center text-sm text-neutral-500">Busca un rango para ver y exportar reservas históricas.</div>}
         </div>
       </section>
       ) : null}
