@@ -22,6 +22,7 @@ import type {
   RoomBookingRule,
   RoomDetail,
   ServiceState,
+  SpecialService,
   WorkspaceUser
 } from "../lib/types";
 import { initialReservationForm } from "../lib/types";
@@ -56,6 +57,8 @@ type WorkspaceContextValue = {
   selectedRoomId: string;
   selectedDate: string;
   selectedTurn: "mediodia" | "noche";
+  specialServices: SpecialService[];
+  selectedSpecialServiceId: string;
   roomDetail: RoomDetail | null;
   reservations: Reservation[];
   customers: Customer[];
@@ -69,6 +72,7 @@ type WorkspaceContextValue = {
   setSelectedRoomId: (value: string) => void;
   setSelectedDate: (value: string) => void;
   setSelectedTurn: (value: "mediodia" | "noche") => void;
+  setSelectedSpecialServiceId: (value: string) => void;
   setReservationForm: React.Dispatch<React.SetStateAction<CreateReservationForm>>;
   setRoomForm: React.Dispatch<React.SetStateAction<{ name: string; description: string; isOutdoor: boolean }>>;
   handleLogin: (formData: FormData) => Promise<void>;
@@ -86,6 +90,7 @@ type WorkspaceContextValue = {
   saveRoomLayout: (roomId: string, payload: unknown) => Promise<void>;
   createReservation: () => Promise<void>;
   moveReservation: (reservationId: string, action: "check-in" | "release") => Promise<void>;
+  cancelReservation: (reservationId: string, reason?: string) => Promise<Reservation>;
   deleteReservation: (reservationId: string) => Promise<void>;
   loadReservationTableOptions: (reservationId: string) => Promise<ReservationTableOption[]>;
   loadAvailableReservationTableOptions: (input: { branchId: string; roomId: string; partySize: number; serviceDate: string; serviceTime: string; preferredZone?: string }) => Promise<ReservationTableOption[]>;
@@ -183,6 +188,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [selectedRoomId, setSelectedRoomId] = useState("");
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
   const [selectedTurn, setSelectedTurn] = useState<"mediodia" | "noche">("noche");
+  const [specialServices, setSpecialServices] = useState<SpecialService[]>([]);
+  const [selectedSpecialServiceId, setSelectedSpecialServiceId] = useState("");
   const [roomDetail, setRoomDetail] = useState<RoomDetail | null>(null);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -295,9 +302,9 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   async function loadOperationalData() {
     if (!selectedBranchId) return;
     const [reservationsData, customersData, statesData] = await Promise.all([
-      api<Reservation[]>(`/restaurant/reservations?branchId=${selectedBranchId}&serviceDate=${selectedDate}&turn=${selectedTurn}`),
+      api<Reservation[]>(`/restaurant/reservations?branchId=${selectedBranchId}&serviceDate=${selectedDate}&turn=${selectedTurn}${selectedSpecialServiceId ? `&specialServiceId=${selectedSpecialServiceId}` : ""}`),
       api<Customer[]>(`/restaurant/customers?branchId=${selectedBranchId}`),
-      api<ServiceState[]>(`/restaurant/tables/states?branchId=${selectedBranchId}&serviceDate=${selectedDate}&turn=${selectedTurn}`)
+      api<ServiceState[]>(`/restaurant/tables/states?branchId=${selectedBranchId}&serviceDate=${selectedDate}&turn=${selectedTurn}${selectedSpecialServiceId ? `&specialServiceId=${selectedSpecialServiceId}` : ""}`)
     ]);
     setReservations(reservationsData);
     setCustomers(customersData);
@@ -319,13 +326,20 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     setRoomDetail(detail);
   }
 
+  async function loadSpecialServices() {
+    if (!selectedBranchId) return;
+    const services = await api<SpecialService[]>(`/restaurant/online-booking/special-services?branchId=${selectedBranchId}&serviceDate=${selectedDate}`);
+    setSpecialServices(services);
+    setSelectedSpecialServiceId((current) => services.some((service) => service.id === current) ? current : services[0]?.id || "");
+  }
+
   async function refreshAll() {
     if (currentUser?.scope === "platform") {
       await loadPlatformRestaurants();
       return;
     }
 
-    await Promise.all([loadBootstrap(), loadOperationalData(), loadRoomDetail(), loadRoomBlocks()]);
+    await Promise.all([loadBootstrap(), loadOperationalData(), loadRoomDetail(), loadRoomBlocks(), loadSpecialServices()]);
   }
 
   useEffect(() => {
@@ -390,9 +404,14 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!token || currentUser?.scope !== "restaurant" || !selectedBranchId) return;
+    loadSpecialServices().catch((error) => setFeedback(error.message));
+  }, [token, currentUser, selectedBranchId, selectedDate]);
+
+  useEffect(() => {
+    if (!token || currentUser?.scope !== "restaurant" || !selectedBranchId) return;
     loadOperationalData().catch((error) => setFeedback(error.message));
     loadRoomBlocks().catch((error) => setFeedback(error.message));
-  }, [token, currentUser, selectedBranchId, selectedDate, selectedTurn]);
+  }, [token, currentUser, selectedBranchId, selectedDate, selectedTurn, selectedSpecialServiceId]);
 
   useEffect(() => {
     if (!token || currentUser?.scope !== "restaurant" || !selectedRoomId) return;
@@ -751,6 +770,22 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     return api<PlatformRestaurantDetail>(`/platform/restaurants/${restaurantId}`);
   }
 
+  async function cancelReservation(reservationId: string, reason?: string) {
+    try {
+      const updated = await api<Reservation>(`/restaurant/reservations/${reservationId}/cancel`, {
+        method: "POST",
+        body: JSON.stringify({ reason: reason?.trim() || undefined })
+      });
+      await loadOperationalData();
+      setFeedback("Reserva cancelada");
+      return updated;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudo cancelar la reserva";
+      setFeedback(message);
+      throw new Error(message);
+    }
+  }
+
   async function deleteReservation(reservationId: string) {
     try {
       await api(`/restaurant/reservations/${reservationId}`, { method: "DELETE" });
@@ -1029,6 +1064,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       selectedRoomId,
       selectedDate,
       selectedTurn,
+      specialServices,
+      selectedSpecialServiceId,
       roomDetail,
       reservations,
       customers,
@@ -1042,6 +1079,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       setSelectedRoomId,
       setSelectedDate,
       setSelectedTurn,
+      setSelectedSpecialServiceId,
       setReservationForm,
       setRoomForm,
       handleLogin,
@@ -1059,6 +1097,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       saveRoomLayout,
       createReservation,
       moveReservation,
+      cancelReservation,
       deleteReservation,
       loadReservationTableOptions,
       loadAvailableReservationTableOptions,
@@ -1101,6 +1140,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       selectedRoomId,
       selectedDate,
       selectedTurn,
+      specialServices,
+      selectedSpecialServiceId,
       roomDetail,
       reservations,
       customers,

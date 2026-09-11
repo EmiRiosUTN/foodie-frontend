@@ -263,6 +263,9 @@ export type Reservation = {
   turn: "mediodia" | "noche";
   serviceDate: string;
   serviceTime: string;
+  durationMinutes?: number;
+  turnoverMinutes?: number;
+  specialService?: { id: string; label: string } | null;
   preferredZone?: string | null;
   notes?: string | null;
   branch?: { id: string; name: string };
@@ -340,6 +343,19 @@ export type CreateReservationForm = {
   notes: string;
   selectedTableIds: string[];
   tableSelectionMode: "automatic" | "configured" | "manual";
+};
+
+export type SpecialService = {
+  id: string;
+  branchId: string;
+  serviceDate: string;
+  label: string;
+  startTime: string;
+  endTime: string;
+  intervalMin: number;
+  durationMinutes: number;
+  turnoverMinutes: number;
+  position: number;
 };
 
 export const initialReservationForm: CreateReservationForm = {

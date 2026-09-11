@@ -117,6 +117,9 @@ export function PanelPage() {
     setSelectedBranchId,
     setSelectedDate,
     setSelectedTurn,
+    specialServices,
+    selectedSpecialServiceId,
+    setSelectedSpecialServiceId,
     roomBlocks,
     tableStates,
     setTableState,
@@ -216,6 +219,13 @@ export function PanelPage() {
               ))}
             </FoodieSelect>
           </div>
+
+          {specialServices.length ? <div className="min-w-[220px] flex-1">
+            <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-neutral-400">Servicio especial</label>
+            <FoodieSelect value={selectedSpecialServiceId} onChange={(event) => { const service = specialServices.find((item) => item.id === event.target.value); setSelectedSpecialServiceId(event.target.value); if (service) setSelectedTurn(Number(service.startTime.slice(0, 2)) < 17 ? "mediodia" : "noche"); setBookingTableIds([]); }} className="font-medium">
+              {specialServices.map((service) => <option key={service.id} value={service.id}>{service.label} · {service.startTime}-{service.endTime}</option>)}
+            </FoodieSelect>
+          </div> : null}
           <div className="min-w-[180px] flex-1">
             <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-neutral-400">Salon</label>
             <FoodieSelect

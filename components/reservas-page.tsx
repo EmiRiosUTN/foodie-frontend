@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, CheckCircle2, Clock3, Download, Plus, Printer, Search, Trash2, Users } from "lucide-react";
+import { CalendarDays, CheckCircle2, Clock3, Download, Plus, Printer, Search, Trash2, Users, XCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ManualReservationTableOption, Reservation } from "../lib/types";
 import { AppModal } from "./app-modal";
@@ -32,6 +32,11 @@ function formatDate(value?: string | null) {
   return value.slice(0, 10);
 }
 
+function reservationScheduleLabel(reservation: Reservation) {
+  const duration = reservation.durationMinutes ? ` · ${reservation.durationMinutes} min` : "";
+  return `${reservation.specialService?.label ? `${reservation.specialService.label} · ` : ""}${reservation.serviceTime}${duration}`;
+}
+
 export function ReservasPage() {
   const {
     reservations,
@@ -39,6 +44,7 @@ export function ReservasPage() {
     setReservationForm,
     createReservation,
     moveReservation,
+    cancelReservation,
     deleteReservation,
     bootstrap,
     currentUser,
@@ -49,6 +55,9 @@ export function ReservasPage() {
     selectedTurn,
     setSelectedDate,
     setSelectedTurn,
+    specialServices,
+    selectedSpecialServiceId,
+    setSelectedSpecialServiceId,
     selectedBranchId,
     loadReservationHistory,
     loadAvailableReservationTableOptions,
@@ -78,9 +87,14 @@ export function ReservasPage() {
   const [historyError, setHistoryError] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Reservation | null>(null);
   const [deleteError, setDeleteError] = useState("");
+  const [cancelTarget, setCancelTarget] = useState<Reservation | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelError, setCancelError] = useState("");
+  const [cancelLoading, setCancelLoading] = useState(false);
   const zonePills = roomDetail?.zones || [];
   const selectedBranch = bootstrap?.branches.find((branch) => branch.id === selectedBranchId);
   const canDeleteReservations = ["restaurant_owner", "restaurant_manager"].includes(currentUser?.role || "");
+  const canCancelReservations = canDeleteReservations;
   const manualSelectedTables = manualTableOptions.filter((table) => reservationForm.selectedTableIds.includes(table.id));
   const manualSelectedCapacity = totalTableCapacity(manualSelectedTables);
   const manualTableOptionsById = useMemo(() => new Map(manualTableOptions.map((table) => [table.id, table])), [manualTableOptions]);
@@ -235,6 +249,22 @@ export function ReservasPage() {
     }
   };
 
+  const handleCancelReservation = async () => {
+    if (!cancelTarget || cancelLoading) return;
+    setCancelLoading(true);
+    setCancelError("");
+    try {
+      const updated = await cancelReservation(cancelTarget.id, cancelReason);
+      setHistoryRows((current) => current.map((reservation) => reservation.id === updated.id ? { ...reservation, status: "cancelled" } : reservation));
+      setCancelTarget(null);
+      setCancelReason("");
+    } catch (error) {
+      setCancelError(error instanceof Error ? error.message : "No se pudo cancelar la reserva.");
+    } finally {
+      setCancelLoading(false);
+    }
+  };
+
   const exportReservationsCsv = () => {
     downloadCsv(
       `reservas-${historyFilters.dateFrom || "inicio"}-${historyFilters.dateTo || "fin"}.csv`,
@@ -320,7 +350,7 @@ export function ReservasPage() {
             </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-[minmax(0,220px)_180px] md:items-end">
+          <div className="grid gap-3 md:grid-cols-[minmax(0,220px)_180px_minmax(0,240px)] md:items-end">
             <label className="space-y-2 text-sm text-brand-ink">
               <span className="inline-flex items-center gap-2 font-medium">
                 <CalendarDays className="h-4 w-4 text-brand-orange" />
@@ -347,6 +377,26 @@ export function ReservasPage() {
                 <option value="noche">Noche</option>
               </FoodieSelect>
             </label>
+            {specialServices.length ? (
+              <label className="space-y-2 text-sm text-brand-ink">
+                <span className="font-medium">Servicio especial</span>
+                <FoodieSelect
+                  value={selectedSpecialServiceId}
+                  onChange={(event) => {
+                    const service = specialServices.find((item) => item.id === event.target.value);
+                    setSelectedSpecialServiceId(event.target.value);
+                    if (service) setSelectedTurn(Number(service.startTime.slice(0, 2)) < 17 ? "mediodia" : "noche");
+                  }}
+                  className="font-medium"
+                >
+                  {specialServices.map((service) => (
+                    <option key={service.id} value={service.id}>
+                      {service.label} · {service.startTime}-{service.endTime}
+                    </option>
+                  ))}
+                </FoodieSelect>
+              </label>
+            ) : null}
           </div>
         </div>
 
@@ -370,7 +420,7 @@ export function ReservasPage() {
                       </p>
                       <p className="mt-2 inline-flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-neutral-400">
                         <Users className="h-3.5 w-3.5" />
-                        {reservation.partySize} cubiertos - {reservation.serviceTime}
+                        {reservation.partySize} cubiertos - {reservationScheduleLabel(reservation)}
                       </p>
                     </div>
                     <div className="min-w-0 text-sm text-neutral-500">
@@ -405,6 +455,11 @@ export function ReservasPage() {
                           Cambiar mesa
                         </button>
                       ) : null}
+                      {canCancelReservations && ["pending", "confirmed", "seated"].includes(reservation.status) ? (
+                        <button type="button" onClick={() => { setCancelError(""); setCancelReason(""); setCancelTarget(reservation); }} className="rounded-full border border-red-200 px-3 py-2 text-xs font-medium text-red-700">
+                          Cancelar
+                        </button>
+                      ) : null}
                       {canDeleteReservations && reservation.status === "cancelled" ? (
                         <button type="button" onClick={() => { setDeleteError(""); setDeleteTarget(reservation); }} className="rounded-full border border-red-200 px-3 py-2 text-xs font-medium text-red-700">
                           Eliminar
@@ -424,7 +479,7 @@ export function ReservasPage() {
                       <p className="truncate text-base font-semibold text-brand-ink">{reservation.fullName}</p>
                       <p className="mt-1 text-sm text-neutral-500">{reservation.room.name}</p>
                       <p className="mt-2 text-xs uppercase tracking-[0.18em] text-neutral-400">
-                        {reservation.code} - {reservation.partySize} cubiertos - {reservation.serviceTime}
+                        {reservation.code} - {reservation.partySize} cubiertos - {reservationScheduleLabel(reservation)}
                       </p>
                     </div>
                     <div className="shrink-0 text-xs font-medium text-neutral-500">{reservation.status}</div>
@@ -456,6 +511,11 @@ export function ReservasPage() {
                         Cambiar mesa
                       </button>
                       ) : null}
+                    {canCancelReservations && ["pending", "confirmed", "seated"].includes(reservation.status) ? (
+                      <button type="button" onClick={() => { setCancelError(""); setCancelReason(""); setCancelTarget(reservation); }} className="flex-1 rounded-full border border-red-200 px-4 py-2.5 text-sm font-medium text-red-700">
+                        Cancelar
+                      </button>
+                    ) : null}
                     {canDeleteReservations && reservation.status === "cancelled" ? (
                       <button type="button" onClick={() => { setDeleteError(""); setDeleteTarget(reservation); }} className="flex-1 rounded-full border border-red-200 px-4 py-2.5 text-sm font-medium text-red-700">
                         Eliminar
@@ -590,7 +650,7 @@ export function ReservasPage() {
                     <span className="text-neutral-500">{reservation.status}</span>
                     <span className="min-w-0 truncate text-neutral-500">{reservation.room.name}</span>
                     <span className="font-semibold text-brand-ink">{reservation.code}</span>
-                    <span>{canDeleteReservations && reservation.status === "cancelled" ? <button type="button" onClick={() => { setDeleteError(""); setDeleteTarget(reservation); }} className="inline-flex items-center gap-1 rounded-full border border-red-200 px-3 py-2 text-xs font-medium text-red-700"><Trash2 className="h-3.5 w-3.5" />Eliminar</button> : null}</span>
+                    <span className="flex flex-wrap gap-2">{canCancelReservations && ["pending", "confirmed", "seated"].includes(reservation.status) ? <button type="button" onClick={() => { setCancelError(""); setCancelReason(""); setCancelTarget(reservation); }} className="inline-flex items-center gap-1 rounded-full border border-red-200 px-3 py-2 text-xs font-medium text-red-700"><XCircle className="h-3.5 w-3.5" />Cancelar</button> : null}{canDeleteReservations && reservation.status === "cancelled" ? <button type="button" onClick={() => { setDeleteError(""); setDeleteTarget(reservation); }} className="inline-flex items-center gap-1 rounded-full border border-red-200 px-3 py-2 text-xs font-medium text-red-700"><Trash2 className="h-3.5 w-3.5" />Eliminar</button> : null}</span>
                   </div>
                 ))
               ) : (
@@ -603,6 +663,26 @@ export function ReservasPage() {
       ) : null}
 
       <ReservationTableReassignModal reservation={reassignReservation} onClose={() => setReassignReservation(null)} />
+
+      <ConfirmDialog
+        open={Boolean(cancelTarget)}
+        title="Cancelar reserva"
+        description={`Vas a cancelar la reserva de ${cancelTarget?.fullName || "este cliente"} · ${cancelTarget?.code || ""} · ${formatDate(cancelTarget?.serviceDate)}.`}
+        confirmLabel={cancelLoading ? "Cancelando..." : "Cancelar reserva"}
+        tone="danger"
+        confirmDisabled={cancelLoading}
+        onCancel={() => { if (!cancelLoading) { setCancelError(""); setCancelTarget(null); } }}
+        onConfirm={() => void handleCancelReservation()}
+      >
+        <div className="space-y-3">
+          <div className="rounded-2xl border border-brand-line bg-[#FCFAF7] p-4 text-sm text-neutral-600">Las mesas asociadas se liberarán y la reserva quedará guardada como cancelada.</div>
+          <label className="block space-y-2 text-sm text-brand-ink">
+            <span className="font-medium">Motivo (opcional)</span>
+            <textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} maxLength={500} rows={3} className="w-full resize-none rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange" placeholder="Dejá una nota para el historial" />
+          </label>
+          {cancelError ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{cancelError}</p> : null}
+        </div>
+      </ConfirmDialog>
 
       <ConfirmDialog
         open={Boolean(deleteTarget)}
