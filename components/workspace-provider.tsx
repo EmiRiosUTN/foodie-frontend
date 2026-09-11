@@ -576,9 +576,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
                   roomId: room.roomId,
                   allocatedCovers: Number(room.allocatedCovers),
                   usage: room.usage
-                })),
-                exceptionReason: reservationForm.eventExceptionReason || undefined,
-                exceptionConfirmed: reservationForm.eventExceptionConfirmed
+                }))
               }
             : {
                 roomId: selectedRoomId,

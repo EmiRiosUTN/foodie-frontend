@@ -351,8 +351,6 @@ export type CreateReservationForm = {
   selectedTableIds: string[];
   tableSelectionMode: "automatic" | "configured" | "manual";
   eventRooms: Array<{ roomId: string; allocatedCovers: string; usage: "partial" | "full" }>;
-  eventExceptionReason: string;
-  eventExceptionConfirmed: boolean;
 };
 
 export type SpecialService = {
@@ -381,9 +379,7 @@ export const initialReservationForm: CreateReservationForm = {
   notes: "",
   selectedTableIds: [],
   tableSelectionMode: "automatic",
-  eventRooms: [],
-  eventExceptionReason: "",
-  eventExceptionConfirmed: false
+  eventRooms: []
 };
 
 export type ManualReservationTableOption = {

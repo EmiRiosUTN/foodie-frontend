@@ -130,10 +130,6 @@ export function ReservasPage() {
     : eventAllocatedCovers > eventTotalCovers
       ? "exceeded"
       : "pending";
-  const hasEventCapacityException = reservationForm.eventRooms.some((assignment) => {
-    const room = selectedBranch?.rooms.find((item) => item.id === assignment.roomId);
-    return Boolean(room && Number(assignment.allocatedCovers) > totalTableCapacity(room.tables));
-  });
   const manualSelectedTables = manualTableOptions.filter((table) => reservationForm.selectedTableIds.includes(table.id));
   const manualSelectedCapacity = totalTableCapacity(manualSelectedTables);
   const manualTableOptionsById = useMemo(() => new Map(manualTableOptions.map((table) => [table.id, table])), [manualTableOptions]);
@@ -250,10 +246,6 @@ export function ReservasPage() {
       }
       if (eventAllocatedCovers !== partySize) {
         setFormError("Los cubiertos distribuidos entre salones deben coincidir con el total del evento.");
-        return;
-      }
-      if (hasEventCapacityException && (!reservationForm.eventExceptionReason.trim() || !reservationForm.eventExceptionConfirmed)) {
-        setFormError("Confirmá la excepción e indicá el motivo para superar la capacidad nominal.");
         return;
       }
     }
@@ -885,7 +877,7 @@ export function ReservasPage() {
           {canCreateEvents ? <div className="space-y-2 text-sm text-brand-ink md:col-span-2">
             <span className="font-medium">Tipo de reserva</span>
             <div className="grid gap-2 sm:grid-cols-2">
-              <button type="button" onClick={() => setReservationForm((current) => ({ ...current, reservationKind: "standard", eventRooms: [], eventExceptionReason: "", eventExceptionConfirmed: false }))} className={`rounded-2xl border px-4 py-3 text-left ${reservationForm.reservationKind === "standard" ? "border-brand-orange bg-[#FFF4ED]" : "border-brand-line bg-white"}`}>
+              <button type="button" onClick={() => setReservationForm((current) => ({ ...current, reservationKind: "standard", eventRooms: [] }))} className={`rounded-2xl border px-4 py-3 text-left ${reservationForm.reservationKind === "standard" ? "border-brand-orange bg-[#FFF4ED]" : "border-brand-line bg-white"}`}>
                 <span className="block font-semibold">Reserva estándar</span><span className="text-xs text-neutral-500">Usa las reglas y mesas habituales.</span>
               </button>
               <button type="button" onClick={() => setReservationForm((current) => ({ ...current, reservationKind: "event", selectedTableIds: [], tableSelectionMode: "automatic", eventRooms: current.eventRooms.length ? current.eventRooms : [] }))} className={`rounded-2xl border px-4 py-3 text-left ${reservationForm.reservationKind === "event" ? "border-brand-orange bg-[#FFF4ED]" : "border-brand-line bg-white"}`}>
@@ -912,12 +904,6 @@ export function ReservasPage() {
                 </div>;
               })}
             </div>
-            <section className="space-y-3 rounded-xl border border-brand-line bg-white p-3 text-brand-ink">
-              <div><h3 className="text-sm font-bold text-brand-ink">Excepción autorizada</h3><p className="mt-1 text-xs leading-relaxed text-neutral-700">Completala únicamente si se supera la capacidad nominal o se utiliza un salón bloqueado.</p></div>
-              {hasEventCapacityException ? <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">Atención: la distribución supera la capacidad nominal de uno o más salones. Podés continuar solo con una excepción autorizada.</p> : null}
-              <label className="block space-y-1"><span className="block text-xs font-bold text-brand-ink">Motivo de la excepción</span><span className="block text-[11px] leading-relaxed text-neutral-700">Dejá registrado por qué se autorizó el uso excepcional.</span><textarea value={reservationForm.eventExceptionReason} onChange={(event) => setReservationForm((current) => ({ ...current, eventExceptionReason: event.target.value }))} placeholder="Ej. Evento corporativo con montaje especial." className="h-20 w-full rounded-xl border border-brand-line px-3 py-2 text-brand-ink placeholder:text-neutral-500" /></label>
-              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-brand-line bg-[#FFF9F5] px-3 py-3 text-xs text-brand-ink"><input className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer accent-[#FF5A1F]" type="checkbox" checked={reservationForm.eventExceptionConfirmed} onChange={(event) => setReservationForm((current) => ({ ...current, eventExceptionConfirmed: event.target.checked }))} /><span><span className="block font-bold text-brand-ink">Confirmación de excepción</span><span className="mt-1 block leading-relaxed text-neutral-700">Confirmo que revisé la capacidad y los bloqueos de los salones. Si existe una excepción, se guardará con el motivo indicado.</span></span></label>
-            </section>
           </div> : <>
           <label className="space-y-2 text-sm text-brand-ink md:col-span-2">
             <span className="font-medium">Salón</span>
