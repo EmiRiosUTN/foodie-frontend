@@ -74,8 +74,9 @@ body {
 }
 
 .print-feedback { padding: 48px; font-family: Arial, sans-serif; }
-.print-actions { display: flex; justify-content: flex-end; margin-bottom: 28px; }
-.print-actions button { border: 0; border-radius: 8px; background: #ea580c; color: white; cursor: pointer; font-weight: 700; padding: 12px 18px; }
+.print-actions { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 28px; }
+.print-actions button, .print-feedback button { align-items: center; border: 0; border-radius: 8px; background: #ea580c; color: white; cursor: pointer; display: inline-flex; font-weight: 700; gap: 8px; justify-content: center; padding: 12px 18px; }
+.print-actions .print-secondary { background: white; border: 1px solid #d4d4d8; color: #27272a; }
 .print-kicker { color: #ea580c; font-size: 12px; font-weight: 700; letter-spacing: .12em; margin: 0 0 8px; text-transform: uppercase; }
 .print-title { font-size: 28px; margin: 0; }
 .print-branch { color: #52525b; font-size: 15px; margin: 10px 0 26px; }
@@ -87,6 +88,33 @@ body {
 .print-table th { border-bottom: 2px solid #18181b; font-size: 10px; letter-spacing: .06em; padding: 8px 6px; text-align: left; text-transform: uppercase; }
 .print-table td { border-bottom: 1px solid #d4d4d8; overflow-wrap: anywhere; padding: 10px 6px; vertical-align: top; }
 .print-empty { border: 1px solid #d4d4d8; color: #52525b; padding: 28px; text-align: center; }
+.print-feedback-card { display: grid; gap: 12px; margin: 48px auto; max-width: 460px; }
+.print-feedback-card button { justify-self: start; }
+.offline-generated { border-left: 3px solid #ea580c; color: #52525b; font-size: 13px; margin: -12px 0 24px; padding-left: 10px; }
+.offline-reservation-list { display: grid; gap: 10px; }
+.offline-reservation-card { break-inside: avoid; border: 1px solid #fed7aa; border-radius: 12px; display: grid; grid-template-columns: 76px minmax(0, 1fr); overflow: hidden; }
+.offline-reservation-time { align-items: center; background: #fff7ed; color: #9a3412; display: flex; font-size: 19px; font-weight: 800; justify-content: center; padding: 18px 8px; }
+.offline-reservation-main { min-width: 0; padding: 14px 16px; }
+.offline-reservation-heading { align-items: start; display: flex; gap: 12px; justify-content: space-between; }
+.offline-reservation-heading h2 { font-size: 16px; margin: 0; }
+.offline-reservation-heading span { background: #f4f4f5; border-radius: 999px; color: #52525b; font-size: 10px; font-weight: 700; padding: 4px 8px; white-space: nowrap; }
+.offline-reservation-main p { color: #52525b; font-size: 13px; line-height: 1.35; margin: 5px 0 0; }
+.offline-reservation-main p strong { color: #27272a; }
+.offline-reservation-main .offline-reservation-notes { border-top: 1px solid #fed7aa; color: #7c2d12; margin-top: 10px; padding-top: 8px; }
+.offline-footer { color: #71717a; font-size: 11px; margin: 24px 0 0; text-align: center; }
+
+@media (max-width: 640px) {
+  .print-page { margin: 0; padding: 24px 18px 36px; }
+  .print-actions { display: grid; grid-template-columns: 1fr; margin-bottom: 24px; }
+  .print-actions button { width: 100%; }
+  .print-title { font-size: 24px; }
+  .print-summary { gap: 28px; }
+  .offline-reservation-card { grid-template-columns: 62px minmax(0, 1fr); }
+  .offline-reservation-time { font-size: 16px; }
+  .offline-reservation-main { padding: 12px; }
+  .offline-reservation-heading { align-items: stretch; flex-direction: column; gap: 5px; }
+  .offline-reservation-heading span { align-self: flex-start; }
+}
 
 @media print {
   body { background: white; }

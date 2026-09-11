@@ -289,7 +289,8 @@ export function ReservasPage() {
 
   const printDailyReservations = () => {
     if (!selectedBranchId || !selectedDate) return;
-    const query = new URLSearchParams({ branchId: selectedBranchId, date: selectedDate });
+    const query = new URLSearchParams({ branchId: selectedBranchId, date: selectedDate, turn: selectedTurn });
+    if (selectedSpecialServiceId) query.set("specialServiceId", selectedSpecialServiceId);
     window.open(`/imprimir-reservas?${query.toString()}`, "_blank", "noopener,noreferrer");
   };
 
@@ -334,7 +335,7 @@ export function ReservasPage() {
                 className="inline-flex items-center justify-center gap-2 rounded-full border border-brand-line px-5 py-3 text-sm font-medium text-brand-ink"
               >
                 <Printer className="h-4 w-4" />
-                Imprimir reservas del dia
+                Backup offline
               </button>
               <button
                 type="button"
