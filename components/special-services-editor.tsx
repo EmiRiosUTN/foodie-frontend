@@ -11,9 +11,6 @@ type SpecialService = {
   label: string;
   startTime: string;
   endTime: string;
-  intervalMin: number;
-  durationMinutes: number;
-  turnoverMinutes: number;
 };
 
 type Props = { token: string; branches: Branch[] };
@@ -50,10 +47,7 @@ export function SpecialServicesEditor({ token, branches }: Props) {
   const addService = () => setRows((current) => [...current, {
     label: `Servicio ${current.length + 1}`,
     startTime: current.length ? "15:30" : "12:00",
-    endTime: current.length ? "18:00" : "14:30",
-    intervalMin: 15,
-    durationMinutes: 90,
-    turnoverMinutes: 30
+    endTime: current.length ? "18:00" : "14:30"
   }]);
 
   async function save() {
@@ -82,7 +76,7 @@ export function SpecialServicesEditor({ token, branches }: Props) {
   return <section className="rounded-[26px] border border-brand-orange/40 bg-[#FFF9F5] p-5 shadow-[0_10px_30px_rgba(181,82,33,0.05)]">
     <div className="max-w-3xl">
       <h2 className="font-extrabold text-brand-ink">Servicios especiales por fecha</h2>
-      <p className="mt-1 text-sm leading-6 text-neutral-600">Armá dos o más servicios para una fecha puntual. La duración y el recambio se reservan antes del siguiente servicio.</p>
+      <p className="mt-1 text-sm leading-6 text-neutral-600">Armá dos o más servicios para una fecha puntual. Cada reserva ocupa la mesa durante toda la franja.</p>
     </div>
 
     <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -97,13 +91,10 @@ export function SpecialServicesEditor({ token, branches }: Props) {
           <p className="text-sm font-bold text-brand-ink">Servicio {index + 1}</p>
           <button type="button" onClick={() => setRows((current) => current.filter((_, rowIndex) => rowIndex !== index))} className="inline-flex items-center gap-1 rounded-full border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"><Trash2 className="h-3.5 w-3.5" />Quitar</button>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(180px,1.6fr)_repeat(5,minmax(88px,1fr))]">
+        <div className="grid gap-3 sm:grid-cols-3">
           <ServiceField label="Nombre"><input value={row.label} onChange={(event) => updateRow(index, { label: event.target.value })} className="foodie-input py-2.5" /></ServiceField>
           <ServiceField label="Desde"><input type="time" value={row.startTime} onChange={(event) => updateRow(index, { startTime: event.target.value })} className="foodie-input py-2.5" /></ServiceField>
           <ServiceField label="Hasta"><input type="time" value={row.endTime} onChange={(event) => updateRow(index, { endTime: event.target.value })} className="foodie-input py-2.5" /></ServiceField>
-          <ServiceField label="Intervalo (min)"><input type="number" min="5" value={row.intervalMin} onChange={(event) => updateRow(index, { intervalMin: Number(event.target.value) })} className="foodie-input py-2.5" /></ServiceField>
-          <ServiceField label="Duración (min)"><input type="number" min="15" value={row.durationMinutes} onChange={(event) => updateRow(index, { durationMinutes: Number(event.target.value) })} className="foodie-input py-2.5" /></ServiceField>
-          <ServiceField label="Recambio (min)"><input type="number" min="0" value={row.turnoverMinutes} onChange={(event) => updateRow(index, { turnoverMinutes: Number(event.target.value) })} className="foodie-input py-2.5" /></ServiceField>
         </div>
       </div>)}
       <div className="flex flex-wrap items-center gap-3">

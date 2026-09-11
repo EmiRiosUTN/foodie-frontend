@@ -186,11 +186,12 @@ export function PanelPage() {
   const detailReservationCapacity = totalTableCapacity(detailReservation?.tables.map((link) => link.table) || []);
   const canCancelReservations = ["restaurant_owner", "restaurant_manager"].includes(currentUser?.role || "");
   const canOperateDetailReservation = Boolean(detailReservation && !isSelectedRoomBlocked && ["pending", "confirmed", "seated"].includes(detailReservation.status));
+  const selectedSpecialService = specialServices.find((service) => service.id === selectedSpecialServiceId) || null;
   const bookingTables = roomDetail?.tables.filter((table) => bookingTableIds.includes(table.id)) || [];
   const bookingCapacity = totalTableCapacity(bookingTables);
 
   function startReservation(tableIds: string[]) {
-    setReservationForm((current) => ({ ...current, selectedTableIds: tableIds, tableSelectionMode: "manual" }));
+    setReservationForm((current) => ({ ...current, selectedTableIds: tableIds, tableSelectionMode: "manual", serviceTime: selectedSpecialService?.startTime || current.serviceTime }));
     setBookingTableIds([]);
     setBookingMode(false);
     setCreateError("");
