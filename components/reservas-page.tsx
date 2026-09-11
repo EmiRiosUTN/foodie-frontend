@@ -124,6 +124,12 @@ export function ReservasPage() {
   const canCancelReservations = canDeleteReservations;
   const canCreateEvents = ["restaurant_owner", "restaurant_manager", "events"].includes(currentUser?.role || "");
   const eventAllocatedCovers = reservationForm.eventRooms.reduce((total, room) => total + (Number(room.allocatedCovers) || 0), 0);
+  const eventTotalCovers = Number(reservationForm.partySize) || 0;
+  const eventDistributionStatus = eventAllocatedCovers === eventTotalCovers
+    ? "complete"
+    : eventAllocatedCovers > eventTotalCovers
+      ? "exceeded"
+      : "pending";
   const hasEventCapacityException = reservationForm.eventRooms.some((assignment) => {
     const room = selectedBranch?.rooms.find((item) => item.id === assignment.roomId);
     return Boolean(room && Number(assignment.allocatedCovers) > totalTableCapacity(room.tables));
@@ -887,21 +893,31 @@ export function ReservasPage() {
               </button>
             </div>
           </div> : null}
-          {reservationForm.reservationKind === "event" ? <div className="space-y-3 rounded-2xl border border-brand-orange bg-[#FFF9F5] p-4 text-sm text-brand-ink md:col-span-2">
-            <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="font-semibold">Salones del evento</p><p className="text-xs text-neutral-600">Cada salón queda bloqueado para reservas normales en este servicio.</p></div><span className={`rounded-full px-3 py-1 text-xs font-semibold ${eventAllocatedCovers === Number(reservationForm.partySize) ? "bg-emerald-100 text-emerald-700" : "bg-white text-brand-orange"}`}>{eventAllocatedCovers} / {reservationForm.partySize || 0} pax</span></div>
+          {reservationForm.reservationKind === "event" ? <div className="space-y-4 rounded-2xl border border-brand-orange bg-[#FFF9F5] p-4 text-sm text-brand-ink md:col-span-2">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div><p className="font-semibold">Salones del evento</p><p className="mt-1 text-xs text-neutral-600">Seleccioná los salones y distribuí manualmente los cubiertos. Cada salón elegido queda bloqueado para reservas normales en este servicio.</p></div>
+              <div className={`min-w-[155px] rounded-xl border px-3 py-2 text-right ${eventDistributionStatus === "complete" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : eventDistributionStatus === "exceeded" ? "border-red-200 bg-red-50 text-red-700" : "border-brand-line bg-white text-brand-ink"}`}>
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em]">Distribución de cubiertos</p>
+                <p className="mt-0.5 text-sm font-bold">{eventAllocatedCovers} de {eventTotalCovers} asignados</p>
+                <p className="mt-0.5 text-[11px] font-medium">{eventDistributionStatus === "complete" ? "Distribución completa" : eventDistributionStatus === "exceeded" ? `Excede por ${eventAllocatedCovers - eventTotalCovers}` : `Faltan ${eventTotalCovers - eventAllocatedCovers}`}</p>
+              </div>
+            </div>
             <div className="space-y-2">
               {(selectedBranch?.rooms || []).map((room) => {
                 const assignment = reservationForm.eventRooms.find((item) => item.roomId === room.id);
                 const capacity = totalTableCapacity(room.tables);
                 return <div key={room.id} className={`rounded-xl border p-3 ${assignment ? "border-brand-orange bg-white" : "border-brand-line bg-white/60"}`}>
-                  <div className="flex items-center gap-3"><input aria-label={`Incluir ${room.name}`} type="checkbox" checked={Boolean(assignment)} onChange={(event) => setReservationForm((current) => ({ ...current, eventRooms: event.target.checked ? [...current.eventRooms, { roomId: room.id, allocatedCovers: "", usage: "partial" }] : current.eventRooms.filter((item) => item.roomId !== room.id) }))} /><div className="min-w-0 flex-1"><p className="font-semibold">{room.name}</p><p className="text-xs text-neutral-500">Capacidad nominal: {capacity} pax</p></div></div>
-                  {assignment ? <div className="mt-3 grid gap-2 sm:grid-cols-2"><label className="space-y-1"><span className="text-xs font-medium">Cubiertos en este salón</span><input type="number" min={1} value={assignment.allocatedCovers} onChange={(event) => setReservationForm((current) => ({ ...current, eventRooms: current.eventRooms.map((item) => item.roomId === room.id ? { ...item, allocatedCovers: event.target.value } : item) }))} className="w-full rounded-xl border border-brand-line px-3 py-2" /></label><label className="space-y-1"><span className="text-xs font-medium">Uso físico</span><FoodieSelect value={assignment.usage} onChange={(event) => setReservationForm((current) => ({ ...current, eventRooms: current.eventRooms.map((item) => item.roomId === room.id ? { ...item, usage: event.target.value as "partial" | "full" } : item) }))}><option value="partial">Parcial</option><option value="full">Total</option></FoodieSelect></label></div> : null}
+                  <label className="flex cursor-pointer items-start gap-3"><input aria-label={`Incluir ${room.name}`} type="checkbox" checked={Boolean(assignment)} onChange={(event) => setReservationForm((current) => ({ ...current, eventRooms: event.target.checked ? [...current.eventRooms, { roomId: room.id, allocatedCovers: "", usage: "partial" }] : current.eventRooms.filter((item) => item.roomId !== room.id) }))} /><span className="min-w-0 flex-1"><span className="block font-semibold">Incluir salón: {room.name}</span><span className="mt-0.5 block text-xs text-neutral-500">Capacidad nominal: {capacity} cubiertos. Es una referencia operativa y puede superarse con excepción.</span></span></label>
+                  {assignment ? <div className="mt-3 grid gap-3 rounded-xl bg-[#FFF9F5] p-3 sm:grid-cols-2"><label className="space-y-1"><span className="block text-xs font-semibold">Cubiertos asignados</span><span className="block text-[11px] text-neutral-500">Personas de este evento que se ubicarán en {room.name}.</span><input type="number" min={1} inputMode="numeric" value={assignment.allocatedCovers} placeholder="Ej. 40" onChange={(event) => setReservationForm((current) => ({ ...current, eventRooms: current.eventRooms.map((item) => item.roomId === room.id ? { ...item, allocatedCovers: event.target.value } : item) }))} className="w-full rounded-xl border border-brand-line bg-white px-3 py-2" /></label><label className="space-y-1"><span className="block text-xs font-semibold">Uso físico del salón</span><span className="block text-[11px] text-neutral-500">Parcial usa una zona; total usa el salón completo. Ambos bloquean reservas normales.</span><FoodieSelect value={assignment.usage} onChange={(event) => setReservationForm((current) => ({ ...current, eventRooms: current.eventRooms.map((item) => item.roomId === room.id ? { ...item, usage: event.target.value as "partial" | "full" } : item) }))}><option value="partial">Parcial</option><option value="full">Total</option></FoodieSelect></label></div> : null}
                 </div>;
               })}
             </div>
-            {hasEventCapacityException ? <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">La distribución supera la capacidad nominal de uno o más salones. Podés continuar solo con una excepción autorizada.</p> : null}
-            <label className="block space-y-1"><span className="text-xs font-medium">Motivo de excepción</span><textarea value={reservationForm.eventExceptionReason} onChange={(event) => setReservationForm((current) => ({ ...current, eventExceptionReason: event.target.value }))} placeholder="Obligatorio si se usa un salón bloqueado o se supera su capacidad." className="h-20 w-full rounded-xl border border-brand-line px-3 py-2" /></label>
-            <label className="flex items-start gap-2 rounded-xl border border-brand-line bg-white px-3 py-2 text-xs text-neutral-700"><input type="checkbox" checked={reservationForm.eventExceptionConfirmed} onChange={(event) => setReservationForm((current) => ({ ...current, eventExceptionConfirmed: event.target.checked }))} /><span>Confirmo que revisé los bloqueos y la capacidad de los salones. Si existe una excepción, se guardará con el motivo indicado.</span></label>
+            <section className="space-y-3 rounded-xl border border-brand-line bg-white p-3">
+              <div><h3 className="text-sm font-semibold">Excepción autorizada</h3><p className="mt-1 text-xs text-neutral-600">Completala únicamente si se supera la capacidad nominal o se utiliza un salón bloqueado.</p></div>
+              {hasEventCapacityException ? <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">Atención: la distribución supera la capacidad nominal de uno o más salones. Podés continuar solo con una excepción autorizada.</p> : null}
+              <label className="block space-y-1"><span className="block text-xs font-semibold">Motivo de la excepción</span><span className="block text-[11px] text-neutral-500">Dejá registrado por qué se autorizó el uso excepcional.</span><textarea value={reservationForm.eventExceptionReason} onChange={(event) => setReservationForm((current) => ({ ...current, eventExceptionReason: event.target.value }))} placeholder="Ej. Evento corporativo con montaje especial." className="h-20 w-full rounded-xl border border-brand-line px-3 py-2" /></label>
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-brand-line bg-[#FFF9F5] px-3 py-3 text-xs text-brand-ink"><input className="mt-0.5" type="checkbox" checked={reservationForm.eventExceptionConfirmed} onChange={(event) => setReservationForm((current) => ({ ...current, eventExceptionConfirmed: event.target.checked }))} /><span><span className="block font-semibold">Confirmación de excepción</span><span className="mt-1 block text-neutral-600">Confirmo que revisé la capacidad y los bloqueos de los salones. Si existe una excepción, se guardará con el motivo indicado.</span></span></label>
+            </section>
           </div> : <>
           <label className="space-y-2 text-sm text-brand-ink md:col-span-2">
             <span className="font-medium">Salón</span>
