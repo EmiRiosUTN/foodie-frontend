@@ -519,8 +519,8 @@ export function PanelPage() {
       </AppModal>
 
       {detailReservation ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(31,31,33,0.42)] p-6">
-          <div className="w-full max-w-lg rounded-[30px] border border-brand-line bg-white p-6 shadow-[0_24px_60px_rgba(31,31,33,0.18)]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(31,31,33,0.42)] p-6" onClick={() => { setDetailReservationId(""); setSelectedTableId(""); setDetailActionError(""); }}>
+          <div className="w-full max-w-lg rounded-[30px] border border-brand-line bg-white p-6 shadow-[0_24px_60px_rgba(31,31,33,0.18)]" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-lg font-semibold text-brand-ink">Detalle de reserva</p>
