@@ -8,6 +8,7 @@ import { ReservationTableReassignModal } from "./reservation-table-reassign-moda
 import { WorkspaceShell } from "./workspace-shell";
 import { useWorkspace } from "./workspace-provider";
 import { totalTableCapacity } from "../lib/table-capacity";
+import { formatArgentinaDate } from "../lib/argentina-date";
 
 const CANVAS_WIDTH = 1600;
 const CANVAS_HEIGHT = 960;
@@ -548,7 +549,7 @@ export function PanelPage() {
               <p><span className="font-semibold text-brand-ink">Email:</span> {detailReservation.email}</p>
               <p><span className="font-semibold text-brand-ink">Cantidad:</span> {detailReservation.partySize}</p>
               <p><span className="font-semibold text-brand-ink">Estado:</span> {detailReservation.status}</p>
-              <p><span className="font-semibold text-brand-ink">Fecha y hora:</span> {new Date(detailReservation.serviceDate).toLocaleDateString("es-AR")} · {detailReservation.serviceTime}</p>
+              <p><span className="font-semibold text-brand-ink">Fecha y hora:</span> {formatArgentinaDate(detailReservation.serviceDate)} · {detailReservation.serviceTime}</p>
               <p><span className="font-semibold text-brand-ink">Salon:</span> {detailReservation.eventRoomAssignments?.length ? detailReservation.eventRoomAssignments.map((assignment) => `${assignment.room.name} (${assignment.allocatedCovers} pax)`).join(" · ") : detailReservation.room.name}</p>
             </div>
 

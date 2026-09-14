@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { argentinaToday } from "../lib/argentina-date";
 import type {
   AuthResponse,
   Bootstrap,
@@ -186,7 +187,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [platformRestaurants, setPlatformRestaurants] = useState<PlatformRestaurantSummary[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState("");
   const [selectedRoomId, setSelectedRoomId] = useState("");
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
+  const [selectedDate, setSelectedDate] = useState(argentinaToday());
   const [selectedTurn, setSelectedTurn] = useState<"mediodia" | "noche">("noche");
   const [specialServices, setSpecialServices] = useState<SpecialService[]>([]);
   const [selectedSpecialServiceId, setSelectedSpecialServiceId] = useState("");
