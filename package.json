@@ -9,7 +9,6 @@
     "deploy:production": "bash scripts/deploy-production.sh"
   },
   "dependencies": {
-    "@zxing/browser": "^0.2.1",
     "axios": "^1.16.1",
     "date-fns": "^4.2.1",
     "jspdf": "^4.2.1",
