@@ -142,6 +142,7 @@ export function ChatDashboard() {
     isSearching,
     searchResults,
     isSearchActive,
+    searchHint,
     deleteMessage,
     deleteChat
   } = useChat();
@@ -466,6 +467,7 @@ export function ChatDashboard() {
 
           <div ref={listRef} onScroll={handleScroll} className="flex-1 overflow-y-auto">
             {error ? <div className="m-4 rounded-2xl border border-[#F0C7B2] bg-[#FFF1EA] px-4 py-3 text-sm text-[#B65221]">{error}</div> : null}
+            {searchHint ? <div className="m-4 rounded-2xl border border-[#D8E5F2] bg-[#F3F8FC] px-4 py-3 text-sm text-[#31546E]">{searchHint}</div> : null}
             {isSearchActive ? (
               <div className="border-b border-brand-line bg-[#F5FAFF] px-4 py-2 text-sm text-[#31546E]">
                 {isSearching ? "Buscando..." : `${displayChats.length} resultado${displayChats.length !== 1 ? "s" : ""}`}

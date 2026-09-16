@@ -29,6 +29,7 @@ type ChatContextValue = {
   isSearching: boolean;
   searchResults: Chat[];
   isSearchActive: boolean;
+  searchHint: string | null;
 };
 
 const ChatContext = createContext<ChatContextValue | null>(null);
@@ -61,6 +62,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<Chat[]>([]);
   const [isSearchActive, setIsSearchActive] = useState(false);
+  const [searchHint, setSearchHint] = useState<string | null>(null);
   const searchAbortRef = useRef<AbortController | null>(null);
   const searchRequestRef = useRef(0);
 
@@ -360,15 +362,28 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const searchChats = useCallback(async (query: string) => {
     const requestId = ++searchRequestRef.current;
     searchAbortRef.current?.abort();
-    if (!user || query.trim().length === 0) {
+    const trimmedQuery = query.trim();
+    if (!user || trimmedQuery.length === 0) {
       setSearchResults([]);
       setIsSearchActive(false);
+      setSearchHint(null);
+      setError(null);
+      setIsSearching(false);
+      return;
+    }
+    if (/^\d+$/.test(trimmedQuery) && trimmedQuery.length < 4) {
+      setSearchResults([]);
+      setIsSearchActive(true);
+      setSearchHint("Ingresá al menos 4 dígitos para buscar por teléfono.");
+      setError(null);
+      setIsSearching(false);
       return;
     }
     const controller = new AbortController();
     searchAbortRef.current = controller;
     setIsSearching(true);
     setIsSearchActive(true);
+    setSearchHint(null);
     setError(null);
     try {
       const clientId = user.role === "admin" ? undefined : user.clientId;
@@ -390,6 +405,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     searchAbortRef.current = null;
     setSearchResults([]);
     setIsSearchActive(false);
+    setSearchHint(null);
+    setError(null);
     setIsSearching(false);
   }, []);
 
@@ -423,7 +440,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         clearSearch,
         isSearching,
         searchResults,
-        isSearchActive
+        isSearchActive,
+        searchHint
       }}
     >
       {children}
