@@ -86,11 +86,11 @@ export const chatService = {
     }
   },
 
-  async searchChats(query: string, clientId?: string): Promise<Chat[]> {
+  async searchChats(query: string, clientId?: string, signal?: AbortSignal): Promise<Chat[]> {
     try {
       const params: Record<string, string> = { query };
       if (clientId) params.clientId = clientId;
-      const response = await chatApi.get("/chats/search", { params });
+      const response = await chatApi.get("/chats/search", { params, signal });
       return response.data;
     } catch (error: any) {
       if (error.response?.status === 404) return [];

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { logChatActivity, serializeChatError } from "./chat-activity-service";
 import { useChatAuth } from "./chat-auth";
 import { chatService, type Chat, type Message } from "./chat-service";
@@ -61,6 +61,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<Chat[]>([]);
   const [isSearchActive, setIsSearchActive] = useState(false);
+  const searchAbortRef = useRef<AbortController | null>(null);
+  const searchRequestRef = useRef(0);
 
   const token = typeof window !== "undefined" ? window.localStorage.getItem("auth_token") : "";
 
@@ -356,27 +358,36 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   }, [chats, user]);
 
   const searchChats = useCallback(async (query: string) => {
+    const requestId = ++searchRequestRef.current;
+    searchAbortRef.current?.abort();
     if (!user || query.trim().length === 0) {
       setSearchResults([]);
       setIsSearchActive(false);
       return;
     }
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
     setIsSearching(true);
     setIsSearchActive(true);
     setError(null);
     try {
       const clientId = user.role === "admin" ? undefined : user.clientId;
-      const results = await chatService.searchChats(query, clientId);
+      const results = await chatService.searchChats(query, clientId, controller.signal);
+      if (requestId !== searchRequestRef.current) return;
       setSearchResults(results);
     } catch (err: any) {
-      setError(err.response?.data?.message || "Error al buscar chats");
+      if (err?.code === "ERR_CANCELED" || requestId !== searchRequestRef.current) return;
+      setError(err.response?.data?.message || err.response?.data?.msg || "Error al buscar chats");
       setSearchResults([]);
     } finally {
-      setIsSearching(false);
+      if (requestId === searchRequestRef.current) setIsSearching(false);
     }
   }, [user]);
 
   const clearSearch = useCallback(() => {
+    searchRequestRef.current += 1;
+    searchAbortRef.current?.abort();
+    searchAbortRef.current = null;
     setSearchResults([]);
     setIsSearchActive(false);
     setIsSearching(false);
