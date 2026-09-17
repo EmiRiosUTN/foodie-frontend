@@ -383,6 +383,7 @@ export function SalonPage() {
     deleteRoom,
     saveRoomLayout,
     loadRoomLayoutImpact,
+    moveReservation,
     roomForm,
     setRoomForm
   } = useWorkspace();
@@ -422,6 +423,7 @@ export function SalonPage() {
   const [layoutImpact, setLayoutImpact] = useState<RoomLayoutImpact | null>(null);
   const [pendingLayoutPayload, setPendingLayoutPayload] = useState<LayoutPayload | null>(null);
   const [impactReassignReservation, setImpactReassignReservation] = useState<Reservation | null>(null);
+  const [completingImpactReservationId, setCompletingImpactReservationId] = useState("");
   const [isReorderingRooms, setIsReorderingRooms] = useState(false);
   const [changingBlockRoomId, setChangingBlockRoomId] = useState("");
   const [bookingRuleRoom, setBookingRuleRoom] = useState<Room | null>(null);
@@ -1300,6 +1302,17 @@ export function SalonPage() {
     }
   }
 
+  async function completeImpactReservation(reservationId: string) {
+    if (!pendingLayoutPayload || completingImpactReservationId) return;
+    setCompletingImpactReservationId(reservationId);
+    try {
+      await moveReservation(reservationId, "release");
+      await refreshLayoutImpact(pendingLayoutPayload);
+    } finally {
+      setCompletingImpactReservationId("");
+    }
+  }
+
   async function saveDesignChanges() {
     if (isSavingLayout) return;
     const payload = buildLayoutPayload();
@@ -2120,7 +2133,7 @@ export function SalonPage() {
                   {!item.requiresReassignment && !item.blocksLayout ? <p className="mt-2 text-xs text-neutral-500">La reserva se conserva; el cambio no altera su asignación ni su capacidad.</p> : null}
                 </div>
                 {item.requiresReassignment ? <button type="button" onClick={() => setImpactReassignReservation(item.reservation)} className="shrink-0 rounded-full border border-brand-orange px-4 py-2 text-sm font-semibold text-brand-orange">Cambiar mesa</button> : null}
-                {item.blocksLayout ? <span className="shrink-0 rounded-full bg-red-100 px-3 py-2 text-xs font-bold text-red-700">Servicio en curso</span> : null}
+                {item.blocksLayout ? <div className="flex shrink-0 flex-wrap items-center gap-2"><span className="rounded-full bg-red-100 px-3 py-2 text-xs font-bold text-red-700">Servicio en curso</span><button type="button" disabled={Boolean(completingImpactReservationId)} onClick={() => void completeImpactReservation(item.reservation.id)} className="rounded-full bg-[#146C37] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">{completingImpactReservationId === item.reservation.id ? "Completando..." : "Completar reserva"}</button></div> : null}
               </div>
             </article>
           ))}
