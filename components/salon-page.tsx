@@ -422,6 +422,7 @@ export function SalonPage() {
   const [isSavingLayout, setIsSavingLayout] = useState(false);
   const [layoutImpact, setLayoutImpact] = useState<RoomLayoutImpact | null>(null);
   const [pendingLayoutPayload, setPendingLayoutPayload] = useState<LayoutPayload | null>(null);
+  const [layoutImpactFocusTableId, setLayoutImpactFocusTableId] = useState("");
   const [impactReassignReservation, setImpactReassignReservation] = useState<Reservation | null>(null);
   const [completingImpactReservationId, setCompletingImpactReservationId] = useState("");
   const [isReorderingRooms, setIsReorderingRooms] = useState(false);
@@ -1170,6 +1171,7 @@ export function SalonPage() {
   }
 
   async function deleteTableWithImpact(itemId: string) {
+    const tableId = editorItems.find((item) => item.id === itemId)?.tableId || itemId;
     const nextEditorItems = editorItems.filter((item) => item.id !== itemId);
     deleteItem(itemId);
 
@@ -1178,10 +1180,13 @@ export function SalonPage() {
 
     setIsSavingLayout(true);
     try {
-      const impact = await loadRoomLayoutImpact(selectedRoomId, payload);
+      const impact = await loadRoomLayoutImpact(selectedRoomId, payload, tableId);
       if (impact.reservations.length) {
         setPendingLayoutPayload(payload);
         setLayoutImpact(impact);
+        setLayoutImpactFocusTableId(tableId);
+      } else {
+        setLayoutImpactFocusTableId("");
       }
     } catch (error) {
       setLastSavedAt(error instanceof Error ? error.message : "No se pudo revisar el impacto de las reservas.");
@@ -1296,7 +1301,7 @@ export function SalonPage() {
   async function refreshLayoutImpact(payload: LayoutPayload) {
     if (!selectedRoomId) return;
     try {
-      setLayoutImpact(await loadRoomLayoutImpact(selectedRoomId, payload));
+      setLayoutImpact(await loadRoomLayoutImpact(selectedRoomId, payload, layoutImpactFocusTableId || undefined));
     } catch (error) {
       setLastSavedAt(error instanceof Error ? error.message : "No se pudo revisar el impacto de las reservas.");
     }
@@ -1323,6 +1328,7 @@ export function SalonPage() {
       if (impact.reservations.length) {
         setPendingLayoutPayload(payload);
         setLayoutImpact(impact);
+        setLayoutImpactFocusTableId("");
         return;
       }
       await persistLayout(payload);
@@ -2095,14 +2101,14 @@ export function SalonPage() {
         open={Boolean(layoutImpact && pendingLayoutPayload)}
         title="Reservas afectadas por los cambios"
         description="Revisá las reservas vinculadas antes de guardar el plano. Las reservas pendientes o confirmadas que queden incompatibles deben reasignarse."
-        onClose={isSavingLayout ? () => undefined : () => { setLayoutImpact(null); setPendingLayoutPayload(null); }}
+        onClose={isSavingLayout ? () => undefined : () => { setLayoutImpact(null); setPendingLayoutPayload(null); setLayoutImpactFocusTableId(""); }}
         widthClassName="max-w-3xl"
         footer={
           <>
             <button
               type="button"
               disabled={isSavingLayout}
-              onClick={() => { setLayoutImpact(null); setPendingLayoutPayload(null); }}
+              onClick={() => { setLayoutImpact(null); setPendingLayoutPayload(null); setLayoutImpactFocusTableId(""); }}
               className="flex-1 rounded-full border border-brand-line px-4 py-3 text-sm font-medium text-brand-ink disabled:opacity-60"
             >
               Volver al plano
@@ -2112,7 +2118,7 @@ export function SalonPage() {
               disabled={isSavingLayout || Boolean(layoutImpact?.reservations.some((item) => item.requiresReassignment || item.blocksLayout))}
               onClick={() => {
                 if (!pendingLayoutPayload) return;
-                void persistLayout(pendingLayoutPayload).then(() => { setLayoutImpact(null); setPendingLayoutPayload(null); }).catch(() => undefined);
+                void persistLayout(pendingLayoutPayload).then(() => { setLayoutImpact(null); setPendingLayoutPayload(null); setLayoutImpactFocusTableId(""); }).catch(() => undefined);
               }}
               className="flex-1 rounded-full bg-brand-orange px-4 py-3 text-sm font-medium text-white disabled:opacity-60"
             >

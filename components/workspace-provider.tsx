@@ -91,7 +91,7 @@ type WorkspaceContextValue = {
   deleteRoomBookingRule: (roomId: string, ruleId: string) => Promise<void>;
   deleteRoom: (roomId: string) => Promise<void>;
   saveRoomLayout: (roomId: string, payload: unknown) => Promise<void>;
-  loadRoomLayoutImpact: (roomId: string, payload: unknown) => Promise<RoomLayoutImpact>;
+  loadRoomLayoutImpact: (roomId: string, payload: unknown, focusTableId?: string) => Promise<RoomLayoutImpact>;
   createReservation: () => Promise<void>;
   moveReservation: (reservationId: string, action: "check-in" | "release") => Promise<void>;
   cancelReservation: (reservationId: string, reason?: string) => Promise<Reservation>;
@@ -778,10 +778,10 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     return api<PlatformRestaurantDetail>(`/platform/restaurants/${restaurantId}`);
   }
 
-  async function loadRoomLayoutImpact(roomId: string, payload: unknown) {
+  async function loadRoomLayoutImpact(roomId: string, payload: unknown, focusTableId?: string) {
     return api<RoomLayoutImpact>(`/restaurant/rooms/${roomId}/layout-impact`, {
       method: "POST",
-      body: JSON.stringify(payload)
+      body: JSON.stringify(focusTableId ? { ...(payload as Record<string, unknown>), focusTableId } : payload)
     });
   }
 
