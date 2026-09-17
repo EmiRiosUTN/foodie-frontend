@@ -1167,9 +1167,30 @@ export function SalonPage() {
     setHasUnsavedChanges(true);
   }
 
+  async function deleteTableWithImpact(itemId: string) {
+    const nextEditorItems = editorItems.filter((item) => item.id !== itemId);
+    deleteItem(itemId);
+
+    const payload = buildLayoutPayload(nextEditorItems);
+    if (!payload || !selectedRoomId) return;
+
+    setIsSavingLayout(true);
+    try {
+      const impact = await loadRoomLayoutImpact(selectedRoomId, payload);
+      if (impact.reservations.length) {
+        setPendingLayoutPayload(payload);
+        setLayoutImpact(impact);
+      }
+    } catch (error) {
+      setLastSavedAt(error instanceof Error ? error.message : "No se pudo revisar el impacto de las reservas.");
+    } finally {
+      setIsSavingLayout(false);
+    }
+  }
+
   function deleteEditingTable() {
     if (!editingTableItemId) return;
-    deleteItem(editingTableItemId);
+    void deleteTableWithImpact(editingTableItemId);
     closeTableModal();
   }
 
@@ -1193,10 +1214,10 @@ export function SalonPage() {
     setHasUnsavedChanges(true);
   }
 
-  function buildLayoutPayload(): LayoutPayload | null {
+  function buildLayoutPayload(items: EditorItem[] = editorItems): LayoutPayload | null {
     if (!selectedRoomId || !roomDetail) return null;
-    const tableItems = editorItems.filter((item) => isTableKind(item.kind));
-    const fixedItems = editorItems.filter((item) => !isTableKind(item.kind));
+    const tableItems = items.filter((item) => isTableKind(item.kind));
+    const fixedItems = items.filter((item) => !isTableKind(item.kind));
     const combinations = activeCombinationKeys
       .map((key, index) => {
         const [leftId, rightId] = key.split("__");
@@ -1241,7 +1262,7 @@ export function SalonPage() {
         height: item.height,
         rotation: item.rotation,
         isReservable: item.isReservable ?? true,
-        metadata: deriveTableMetadata(item, editorItems),
+        metadata: deriveTableMetadata(item, items),
         zoneId: item.zoneId || null
       })),
       combinations
@@ -1313,7 +1334,12 @@ export function SalonPage() {
 
       if ((event.key === "Delete" || event.key === "Backspace") && selectedItemId) {
         event.preventDefault();
-        deleteItem(selectedItemId);
+        const selectedItem = editorItems.find((item) => item.id === selectedItemId);
+        if (selectedItem && isTableKind(selectedItem.kind)) {
+          void deleteTableWithImpact(selectedItemId);
+        } else {
+          deleteItem(selectedItemId);
+        }
       }
     };
 
@@ -1673,7 +1699,7 @@ export function SalonPage() {
                                   type="button"
                                   onClick={(event) => {
                                     event.stopPropagation();
-                                    deleteItem(item.id);
+                                    void deleteTableWithImpact(item.id);
                                   }}
                                   className="flex h-7 w-7 items-center justify-center rounded-full border border-[#F0C7B2] text-sm text-[#B65221] hover:bg-[#FFF4ED]"
                                   aria-label="Borrar mesa"
