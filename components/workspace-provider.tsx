@@ -11,6 +11,7 @@ import type {
   Customer,
   CustomerDetail,
   ManualReservationTableOption,
+  RoomLayoutImpact,
   PlatformRestaurantDetail,
   PlatformRestaurantSummary,
   Reservation,
@@ -90,12 +91,13 @@ type WorkspaceContextValue = {
   deleteRoomBookingRule: (roomId: string, ruleId: string) => Promise<void>;
   deleteRoom: (roomId: string) => Promise<void>;
   saveRoomLayout: (roomId: string, payload: unknown) => Promise<void>;
+  loadRoomLayoutImpact: (roomId: string, payload: unknown) => Promise<RoomLayoutImpact>;
   createReservation: () => Promise<void>;
   moveReservation: (reservationId: string, action: "check-in" | "release") => Promise<void>;
   cancelReservation: (reservationId: string, reason?: string) => Promise<Reservation>;
   deleteReservation: (reservationId: string) => Promise<void>;
   loadReservationTableOptions: (reservationId: string) => Promise<ReservationTableOption[]>;
-  loadReservationTableAvailability: (reservationId: string, roomId: string) => Promise<ReservationTableAvailability>;
+  loadReservationTableAvailability: (reservationId: string, roomId: string, excludedTableIds?: string[]) => Promise<ReservationTableAvailability>;
   loadAvailableReservationTableOptions: (input: { branchId: string; roomId: string; partySize: number; serviceDate: string; serviceTime: string; preferredZone?: string }) => Promise<ReservationTableOption[]>;
   loadAvailableManualReservationTables: (input: { branchId: string; roomId: string; serviceDate: string; serviceTime: string; preferredZone?: string }) => Promise<ManualReservationTableOption[]>;
   reassignReservationTables: (reservationId: string, input: { roomId: string; tableIds: string[] }) => Promise<void>;
@@ -776,6 +778,13 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     return api<PlatformRestaurantDetail>(`/platform/restaurants/${restaurantId}`);
   }
 
+  async function loadRoomLayoutImpact(roomId: string, payload: unknown) {
+    return api<RoomLayoutImpact>(`/restaurant/rooms/${roomId}/layout-impact`, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+  }
+
   async function cancelReservation(reservationId: string, reason?: string) {
     try {
       const updated = await api<Reservation>(`/restaurant/reservations/${reservationId}/cancel`, {
@@ -808,8 +817,10 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     return api<ReservationTableOption[]>(`/restaurant/reservations/${reservationId}/table-options`);
   }
 
-  async function loadReservationTableAvailability(reservationId: string, roomId: string) {
-    return api<ReservationTableAvailability>(`/restaurant/reservations/${reservationId}/table-availability?roomId=${encodeURIComponent(roomId)}`);
+  async function loadReservationTableAvailability(reservationId: string, roomId: string, excludedTableIds: string[] = []) {
+    const query = new URLSearchParams({ roomId });
+    if (excludedTableIds.length) query.set("excludeTableIds", excludedTableIds.join(","));
+    return api<ReservationTableAvailability>(`/restaurant/reservations/${reservationId}/table-availability?${query.toString()}`);
   }
 
   async function loadAvailableReservationTableOptions(input: { branchId: string; roomId: string; partySize: number; serviceDate: string; serviceTime: string; preferredZone?: string }) {
@@ -1105,6 +1116,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       deleteRoomBookingRule,
       deleteRoom,
       saveRoomLayout,
+      loadRoomLayoutImpact,
       createReservation,
       moveReservation,
       cancelReservation,

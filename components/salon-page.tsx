@@ -5,9 +5,10 @@ import { ArrowDown, ArrowUp, CalendarDays, LockKeyhole, LockOpen, MoreHorizontal
 import { AppModal } from "./app-modal";
 import { ConfirmDialog } from "./confirm-dialog";
 import { FoodieSelect } from "./foodie-select";
+import { ReservationTableReassignModal } from "./reservation-table-reassign-modal";
 import { WorkspaceShell } from "./workspace-shell";
 import { useWorkspace } from "./workspace-provider";
-import type { Room, RoomBookingRule } from "../lib/types";
+import type { Reservation, Room, RoomBookingRule, RoomLayoutImpact } from "../lib/types";
 import { totalTableCapacity } from "../lib/table-capacity";
 
 const weekdayOptions = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
@@ -41,6 +42,13 @@ type EditorItem = {
   isReservable?: boolean;
   isCombinable?: boolean;
   metadata?: Record<string, unknown>;
+};
+
+type LayoutPayload = {
+  zones: Room["zones"];
+  items: Array<{ id: string; kind: string; label: string; x: number; y: number; width: number; height: number; rotation: number; metadata: Record<string, unknown> }>;
+  tables: Array<{ id: string; label: string; shape: string; seats: number; x: number; y: number; width: number; height: number; rotation: number; isReservable: boolean; metadata: TableItemMetadata; zoneId: string | null }>;
+  combinations: Array<{ id: string; parentTableId: string; childTableId: string; combinedSeats: number }>;
 };
 
 type TableItemMetadata = {
@@ -374,6 +382,7 @@ export function SalonPage() {
     deleteRoomBookingRule,
     deleteRoom,
     saveRoomLayout,
+    loadRoomLayoutImpact,
     roomForm,
     setRoomForm
   } = useWorkspace();
@@ -410,6 +419,9 @@ export function SalonPage() {
   });
   const [combinationKeys, setCombinationKeys] = useState<string[]>([]);
   const [isSavingLayout, setIsSavingLayout] = useState(false);
+  const [layoutImpact, setLayoutImpact] = useState<RoomLayoutImpact | null>(null);
+  const [pendingLayoutPayload, setPendingLayoutPayload] = useState<LayoutPayload | null>(null);
+  const [impactReassignReservation, setImpactReassignReservation] = useState<Reservation | null>(null);
   const [isReorderingRooms, setIsReorderingRooms] = useState(false);
   const [changingBlockRoomId, setChangingBlockRoomId] = useState("");
   const [bookingRuleRoom, setBookingRuleRoom] = useState<Room | null>(null);
@@ -1175,9 +1187,8 @@ export function SalonPage() {
     setHasUnsavedChanges(true);
   }
 
-  async function saveDesignChanges() {
-    if (!selectedRoomId || !roomDetail) return;
-
+  function buildLayoutPayload(): LayoutPayload | null {
+    if (!selectedRoomId || !roomDetail) return null;
     const tableItems = editorItems.filter((item) => isTableKind(item.kind));
     const fixedItems = editorItems.filter((item) => !isTableKind(item.kind));
     const combinations = activeCombinationKeys
@@ -1200,7 +1211,7 @@ export function SalonPage() {
       })
       .filter((item): item is { id: string; parentTableId: string; childTableId: string; combinedSeats: number } => Boolean(item));
 
-    const payload = {
+    return {
       zones: editorZones,
       items: fixedItems.map((item) => ({
         id: item.id,
@@ -1229,6 +1240,10 @@ export function SalonPage() {
       })),
       combinations
     };
+  }
+
+  async function persistLayout(payload: LayoutPayload) {
+    if (!selectedRoomId) return;
     setIsSavingLayout(true);
 
     try {
@@ -1241,8 +1256,38 @@ export function SalonPage() {
           minute: "2-digit"
         })
       );
-    } catch {
-      setLastSavedAt("Error al guardar en backend");
+    } catch (error) {
+      setLastSavedAt(error instanceof Error ? error.message : "Error al guardar en backend");
+      throw error;
+    } finally {
+      setIsSavingLayout(false);
+    }
+  }
+
+  async function refreshLayoutImpact(payload: LayoutPayload) {
+    if (!selectedRoomId) return;
+    try {
+      setLayoutImpact(await loadRoomLayoutImpact(selectedRoomId, payload));
+    } catch (error) {
+      setLastSavedAt(error instanceof Error ? error.message : "No se pudo revisar el impacto de las reservas.");
+    }
+  }
+
+  async function saveDesignChanges() {
+    if (isSavingLayout) return;
+    const payload = buildLayoutPayload();
+    if (!payload || !selectedRoomId) return;
+    setIsSavingLayout(true);
+    try {
+      const impact = await loadRoomLayoutImpact(selectedRoomId, payload);
+      if (impact.reservations.length) {
+        setPendingLayoutPayload(payload);
+        setLayoutImpact(impact);
+        return;
+      }
+      await persistLayout(payload);
+    } catch (error) {
+      setLastSavedAt(error instanceof Error ? error.message : "No se pudo revisar el impacto de las reservas.");
     } finally {
       setIsSavingLayout(false);
     }
@@ -1998,6 +2043,65 @@ export function SalonPage() {
         onConfirm={() => {
           if (!roomPendingDelete) return;
           void handleDeleteRoom(roomPendingDelete.id);
+        }}
+      />
+
+      <AppModal
+        open={Boolean(layoutImpact && pendingLayoutPayload)}
+        title="Reservas afectadas por los cambios"
+        description="Revisá las reservas vinculadas antes de guardar el plano. Las reservas pendientes o confirmadas que queden incompatibles deben reasignarse."
+        onClose={isSavingLayout ? () => undefined : () => { setLayoutImpact(null); setPendingLayoutPayload(null); }}
+        widthClassName="max-w-3xl"
+        footer={
+          <>
+            <button
+              type="button"
+              disabled={isSavingLayout}
+              onClick={() => { setLayoutImpact(null); setPendingLayoutPayload(null); }}
+              className="flex-1 rounded-full border border-brand-line px-4 py-3 text-sm font-medium text-brand-ink disabled:opacity-60"
+            >
+              Volver al plano
+            </button>
+            <button
+              type="button"
+              disabled={isSavingLayout || Boolean(layoutImpact?.reservations.some((item) => item.requiresReassignment || item.blocksLayout))}
+              onClick={() => {
+                if (!pendingLayoutPayload) return;
+                void persistLayout(pendingLayoutPayload).then(() => { setLayoutImpact(null); setPendingLayoutPayload(null); }).catch(() => undefined);
+              }}
+              className="flex-1 rounded-full bg-brand-orange px-4 py-3 text-sm font-medium text-white disabled:opacity-60"
+            >
+              {isSavingLayout ? "Guardando..." : "Continuar y guardar"}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          {layoutImpact?.reservations.map((item) => (
+            <article key={item.reservation.id} className={`rounded-2xl border p-4 ${item.blocksLayout ? "border-red-300 bg-red-50" : item.requiresReassignment ? "border-amber-300 bg-amber-50" : "border-brand-line bg-white"}`}>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="font-semibold text-brand-ink">{item.reservation.fullName} · {item.reservation.code}</p>
+                  <p className="mt-1 text-sm text-neutral-600">{item.reservation.serviceDate.slice(0, 10)} · {item.reservation.serviceTime} · {item.reservation.partySize} comensales</p>
+                  <p className="mt-1 text-xs text-neutral-500">Mesa{item.affectedTables.length === 1 ? "" : "s"} afectada{item.affectedTables.length === 1 ? "" : "s"}: {item.affectedTables.join(", ")}</p>
+                  {item.reasons.map((reason) => <p key={reason} className="mt-1 text-sm font-medium text-[#B65221]">{reason}</p>)}
+                  {!item.requiresReassignment && !item.blocksLayout ? <p className="mt-2 text-xs text-neutral-500">La reserva se conserva; el cambio no altera su asignación ni su capacidad.</p> : null}
+                </div>
+                {item.requiresReassignment ? <button type="button" onClick={() => setImpactReassignReservation(item.reservation)} className="shrink-0 rounded-full border border-brand-orange px-4 py-2 text-sm font-semibold text-brand-orange">Cambiar mesa</button> : null}
+                {item.blocksLayout ? <span className="shrink-0 rounded-full bg-red-100 px-3 py-2 text-xs font-bold text-red-700">Servicio en curso</span> : null}
+              </div>
+            </article>
+          ))}
+        </div>
+      </AppModal>
+
+      <ReservationTableReassignModal
+        reservation={impactReassignReservation}
+        excludedTableIds={layoutImpact?.excludedTableIds || []}
+        onClose={() => setImpactReassignReservation(null)}
+        onComplete={() => {
+          setImpactReassignReservation(null);
+          if (pendingLayoutPayload) void refreshLayoutImpact(pendingLayoutPayload);
         }}
       />
 

@@ -5,9 +5,9 @@ import type { Reservation, ReservationTableAvailability } from "../lib/types";
 import { AppModal } from "./app-modal";
 import { useWorkspace } from "./workspace-provider";
 
-type ReservationTableReassignModalProps = { reservation: Reservation | null; onClose: () => void };
+type ReservationTableReassignModalProps = { reservation: Reservation | null; onClose: () => void; onComplete?: () => void; excludedTableIds?: string[] };
 
-export function ReservationTableReassignModal({ reservation, onClose }: ReservationTableReassignModalProps) {
+export function ReservationTableReassignModal({ reservation, onClose, onComplete, excludedTableIds = [] }: ReservationTableReassignModalProps) {
   const { bootstrap, loadReservationTableAvailability, reassignReservationTables } = useWorkspace();
   const [selectedRoomId, setSelectedRoomId] = useState("");
   const [availabilityByRoom, setAvailabilityByRoom] = useState<Record<string, ReservationTableAvailability>>({});
@@ -15,6 +15,7 @@ export function ReservationTableReassignModal({ reservation, onClose }: Reservat
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const exclusionKey = excludedTableIds.join("|");
 
   const rooms = useMemo(() => {
     const branch = bootstrap?.branches.find((item) => item.id === reservation?.branch?.id || item.rooms.some((room) => room.id === reservation?.room.id));
@@ -33,12 +34,12 @@ export function ReservationTableReassignModal({ reservation, onClose }: Reservat
     setAvailabilityByRoom({});
     setError("");
     setLoading(true);
-    Promise.all(rooms.map(async (room) => [room.id, await loadReservationTableAvailability(reservation.id, room.id)] as const))
+    Promise.all(rooms.map(async (room) => [room.id, await loadReservationTableAvailability(reservation.id, room.id, excludedTableIds)] as const))
       .then((responses) => { if (active) setAvailabilityByRoom(Object.fromEntries(responses)); })
       .catch((requestError) => { if (active) setError(requestError instanceof Error ? requestError.message : "No se pudieron cargar las mesas del salon."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [reservation?.id, rooms, loadReservationTableAvailability]);
+  }, [reservation?.id, rooms, loadReservationTableAvailability, exclusionKey]);
 
   async function save() {
     if (!reservation || !availability?.isBookable || !hasEnoughCapacity) return;
@@ -46,6 +47,7 @@ export function ReservationTableReassignModal({ reservation, onClose }: Reservat
     setError("");
     try {
       await reassignReservationTables(reservation.id, { roomId: selectedRoomId, tableIds: selectedTableIds });
+      onComplete?.();
       onClose();
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "No se pudieron reasignar las mesas.");

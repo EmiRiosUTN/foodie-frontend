@@ -366,6 +366,19 @@ export type ReservationTableAvailability = {
   }>;
 };
 
+export type RoomLayoutImpact = {
+  affectedTableIds: string[];
+  excludedTableIds: string[];
+  reservations: Array<{
+    reservation: Reservation;
+    affectedTables: string[];
+    requiresReassignment: boolean;
+    blocksLayout: boolean;
+    reasons: string[];
+    finalCapacity: number;
+  }>;
+};
+
 export type SpecialService = {
   id: string;
   branchId: string;
