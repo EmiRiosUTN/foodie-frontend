@@ -120,6 +120,8 @@ export function ReservasPage() {
   const [mobileActionReservation, setMobileActionReservation] = useState<Reservation | null>(null);
   const zonePills = roomDetail?.zones || [];
   const selectedBranch = bootstrap?.branches.find((branch) => branch.id === selectedBranchId);
+  const isEventsUser = currentUser?.role === "events";
+  const canOperateReservations = !isEventsUser;
   const canDeleteReservations = ["restaurant_owner", "restaurant_manager"].includes(currentUser?.role || "");
   const canCancelReservations = canDeleteReservations;
   const canCreateEvents = ["restaurant_owner", "restaurant_manager", "events"].includes(currentUser?.role || "");
@@ -221,6 +223,14 @@ export function ReservasPage() {
       }),
     [reservations]
   );
+
+  const openCreateReservation = () => {
+    setFormError("");
+    if (isEventsUser) {
+      setReservationForm((current) => ({ ...current, reservationKind: "event", selectedTableIds: [], tableSelectionMode: "automatic", eventRooms: current.eventRooms.length ? current.eventRooms : [] }));
+    }
+    setCreateOpen(true);
+  };
 
   const handleCreate = async () => {
     setFormError("");
@@ -388,7 +398,7 @@ export function ReservasPage() {
               <h2 className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-brand-ink">Reservas del turno</h2>
             </div>
             <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row">
-              <button
+              {!isEventsUser ? <button
                 type="button"
                 onClick={() => void downloadDailyBackup()}
                 disabled={backupLoading}
@@ -396,13 +406,10 @@ export function ReservasPage() {
               >
                 <Download className="h-4 w-4" />
                 {backupLoading ? "Preparando PDF..." : "Descargar PDF"}
-              </button>
+              </button> : null}
               <button
                 type="button"
-                onClick={() => {
-                  setFormError("");
-                  setCreateOpen(true);
-                }}
+                onClick={openCreateReservation}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-brand-orange px-5 py-3 text-sm font-medium text-white md:w-auto"
               >
                 <Plus className="h-4 w-4" />
@@ -503,7 +510,7 @@ export function ReservasPage() {
                     <div className="text-sm font-semibold text-brand-ink">{reservation.code}</div>
                     <div className="text-sm text-neutral-500">{reservation.status}</div>
                     <div className="flex items-start justify-end gap-2">
-                      {reservation.status !== "cancelled" ? <>
+                      {canOperateReservations && reservation.status !== "cancelled" ? <>
                         <button
                           type="button"
                           onClick={() => moveReservation(reservation.id, "check-in")}
@@ -519,7 +526,7 @@ export function ReservasPage() {
                           Liberar
                         </button>
                       </> : null}
-                      {["pending", "confirmed"].includes(reservation.status) ? (
+                      {canOperateReservations && ["pending", "confirmed"].includes(reservation.status) ? (
                         <button
                           type="button"
                           onClick={() => setReassignReservation(reservation)}
@@ -559,16 +566,16 @@ export function ReservasPage() {
                       <p className="mt-2 text-[11px] uppercase tracking-[0.14em] text-neutral-400">{reservation.code}{reservation.durationMinutes ? ` · ${reservation.durationMinutes} min` : ""}</p>
                     </div>
                   </div>
-                  {(["pending", "confirmed"].includes(reservation.status) || reservation.status === "seated") ? (
+                  {canOperateReservations && (["pending", "confirmed"].includes(reservation.status) || reservation.status === "seated") ? (
                     <div className="mt-4 flex gap-2">
                       <button type="button" onClick={() => moveReservation(reservation.id, reservation.status === "seated" ? "release" : "check-in")} className="flex-1 rounded-full bg-brand-orange px-4 py-2.5 text-sm font-semibold text-white">
                         {reservation.status === "seated" ? "Liberar" : "Check-in"}
                       </button>
-                      {["pending", "confirmed"].includes(reservation.status) || canCancelReservations ? <button type="button" onClick={() => setMobileActionReservation(reservation)} className="inline-flex w-12 items-center justify-center rounded-full border border-brand-line text-brand-ink" aria-label={`Más acciones para ${reservation.fullName}`}>
+                      {canOperateReservations && (["pending", "confirmed"].includes(reservation.status) || canCancelReservations) ? <button type="button" onClick={() => setMobileActionReservation(reservation)} className="inline-flex w-12 items-center justify-center rounded-full border border-brand-line text-brand-ink" aria-label={`Más acciones para ${reservation.fullName}`}>
                         <MoreHorizontal className="h-5 w-5" />
                       </button> : null}
                     </div>
-                  ) : canDeleteReservations && reservation.status === "cancelled" ? (
+                  ) : canOperateReservations && canDeleteReservations && reservation.status === "cancelled" ? (
                     <button type="button" onClick={() => setMobileActionReservation(reservation)} className="mt-4 inline-flex items-center gap-2 rounded-full border border-brand-line px-4 py-2 text-sm font-medium text-brand-ink">Más acciones<MoreHorizontal className="h-4 w-4" /></button>
                   ) : null}
                 </article>
@@ -587,7 +594,7 @@ export function ReservasPage() {
           </div>
         )}
       </section>
-      <div className="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-3 pb-[env(safe-area-inset-bottom)] md:hidden">
+      {!isEventsUser ? <div className="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-3 pb-[env(safe-area-inset-bottom)] md:hidden">
         {backupError ? <p className="max-w-[min(280px,calc(100vw-2rem))] rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 shadow-lg" role="alert">{backupError}</p> : null}
         <button
           type="button"
@@ -599,7 +606,7 @@ export function ReservasPage() {
           <Download className="h-5 w-5" />
           {backupLoading ? "Preparando..." : "PDF"}
         </button>
-      </div>
+      </div> : null}
       </>
       ) : null}
 
@@ -752,10 +759,10 @@ export function ReservasPage() {
         widthClassName="max-w-sm"
       >
         <div className="grid gap-3">
-          {["pending", "confirmed"].includes(mobileActionReservation?.status || "") ? <button type="button" onClick={() => { setReassignReservation(mobileActionReservation); setMobileActionReservation(null); }} className="rounded-full border border-brand-orange px-4 py-3 text-sm font-semibold text-brand-orange">Cambiar mesas</button> : null}
-          {canCancelReservations && mobileActionReservation && ["pending", "confirmed", "seated"].includes(mobileActionReservation.status) ? <button type="button" onClick={() => { setCancelError(""); setCancelReason(""); setCancelTarget(mobileActionReservation); setMobileActionReservation(null); }} className="rounded-full border border-red-200 px-4 py-3 text-sm font-semibold text-red-700">Cancelar reserva</button> : null}
-          {canDeleteReservations && mobileActionReservation?.status === "cancelled" ? <button type="button" onClick={() => { setDeleteError(""); setDeleteTarget(mobileActionReservation); setMobileActionReservation(null); }} className="rounded-full border border-red-200 px-4 py-3 text-sm font-semibold text-red-700">Eliminar reserva</button> : null}
-          {!(["pending", "confirmed"].includes(mobileActionReservation?.status || "") || (canCancelReservations && ["pending", "confirmed", "seated"].includes(mobileActionReservation?.status || "")) || (canDeleteReservations && mobileActionReservation?.status === "cancelled")) ? <p className="text-sm text-white/70">No hay acciones adicionales para esta reserva.</p> : null}
+          {canOperateReservations && ["pending", "confirmed"].includes(mobileActionReservation?.status || "") ? <button type="button" onClick={() => { setReassignReservation(mobileActionReservation); setMobileActionReservation(null); }} className="rounded-full border border-brand-orange px-4 py-3 text-sm font-semibold text-brand-orange">Cambiar mesas</button> : null}
+          {canOperateReservations && canCancelReservations && mobileActionReservation && ["pending", "confirmed", "seated"].includes(mobileActionReservation.status) ? <button type="button" onClick={() => { setCancelError(""); setCancelReason(""); setCancelTarget(mobileActionReservation); setMobileActionReservation(null); }} className="rounded-full border border-red-200 px-4 py-3 text-sm font-semibold text-red-700">Cancelar reserva</button> : null}
+          {canOperateReservations && canDeleteReservations && mobileActionReservation?.status === "cancelled" ? <button type="button" onClick={() => { setDeleteError(""); setDeleteTarget(mobileActionReservation); setMobileActionReservation(null); }} className="rounded-full border border-red-200 px-4 py-3 text-sm font-semibold text-red-700">Eliminar reserva</button> : null}
+          {!canOperateReservations || !(["pending", "confirmed"].includes(mobileActionReservation?.status || "") || (canCancelReservations && ["pending", "confirmed", "seated"].includes(mobileActionReservation?.status || "")) || (canDeleteReservations && mobileActionReservation?.status === "cancelled")) ? <p className="text-sm text-white/70">No hay acciones adicionales para esta reserva.</p> : null}
         </div>
       </AppModal>
 
@@ -874,7 +881,7 @@ export function ReservasPage() {
               className="w-full rounded-2xl border border-brand-line px-4 py-3 outline-none focus:border-brand-orange"
             />
           </label>
-          {canCreateEvents ? <div className="space-y-2 text-sm text-brand-ink md:col-span-2">
+          {canCreateEvents && !isEventsUser ? <div className="space-y-2 text-sm text-brand-ink md:col-span-2">
             <span className="font-medium">Tipo de reserva</span>
             <div className="grid gap-2 sm:grid-cols-2">
               <button type="button" onClick={() => setReservationForm((current) => ({ ...current, reservationKind: "standard", eventRooms: [] }))} className={`rounded-2xl border px-4 py-3 text-left ${reservationForm.reservationKind === "standard" ? "border-brand-orange bg-[#FFF4ED]" : "border-brand-line bg-white"}`}>
@@ -884,7 +891,7 @@ export function ReservasPage() {
                 <span className="block font-semibold">Reserva de evento</span><span className="text-xs text-neutral-500">Distribuí grupos grandes entre varios salones.</span>
               </button>
             </div>
-          </div> : null}
+          </div> : isEventsUser ? <p className="text-sm font-medium text-brand-ink md:col-span-2">Tipo de reserva: evento</p> : null}
           {reservationForm.reservationKind === "event" ? <div className="space-y-4 rounded-2xl border border-brand-orange bg-[#FFF9F5] p-4 text-sm text-brand-ink md:col-span-2">
             <div className="flex flex-col items-stretch justify-between gap-3 md:flex-row md:items-start">
               <div className="min-w-0 flex-1"><p className="font-semibold text-brand-ink">Salones del evento</p><p className="mt-1 max-w-2xl text-xs leading-relaxed text-neutral-700">Seleccioná los salones y distribuí manualmente los cubiertos. Cada salón elegido queda bloqueado para reservas normales en este servicio.</p></div>

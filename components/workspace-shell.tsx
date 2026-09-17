@@ -17,7 +17,7 @@ const restaurantNavigationItems = [
   { href: "/clientes", label: "Clientes" }
 ];
 const receptionNavigationItems = restaurantNavigationItems.filter((item) => ["/panel", "/chat", "/salon", "/reservas"].includes(item.href));
-const eventsNavigationItems = restaurantNavigationItems.filter((item) => item.href === "/chat");
+const eventsNavigationItems = restaurantNavigationItems.filter((item) => item.href === "/chat" || item.href === "/reservas");
 
 const platformNavigationItems = [
   { href: "/admin", label: "Restaurantes" },

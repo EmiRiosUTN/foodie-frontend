@@ -379,7 +379,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (currentUser.scope === "restaurant" && currentUser.role === "events") {
-      const hasEventsAccess = pathname === "/chat" || pathname.startsWith("/chat/");
+      const hasEventsAccess = pathname === "/chat" || pathname.startsWith("/chat/") || pathname === "/reservas" || pathname.startsWith("/reservas/");
       if (!hasEventsAccess) {
         router.replace("/chat");
         return;

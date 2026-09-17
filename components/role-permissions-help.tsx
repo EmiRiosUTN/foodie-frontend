@@ -37,7 +37,7 @@ export const restaurantRolePermissions: Record<RestaurantUserRole, RolePermissio
   },
   events: {
     label: "Eventos",
-    description: "Tiene los mismos permisos que Recepción. En Chat sólo ve conversaciones con la etiqueta Evento."
+    description: "Ve conversaciones y reservas de evento. Puede crear reservas de evento, sin acceso a reservas estándar ni acciones operativas."
   }
 };
 
