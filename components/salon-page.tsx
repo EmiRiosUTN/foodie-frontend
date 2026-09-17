@@ -1167,6 +1167,12 @@ export function SalonPage() {
     setHasUnsavedChanges(true);
   }
 
+  function deleteEditingTable() {
+    if (!editingTableItemId) return;
+    deleteItem(editingTableItemId);
+    closeTableModal();
+  }
+
   function addZone() {
     const name = newZoneName.trim();
     if (!name || editorZones.some((zone) => zone.name.toLowerCase() === name.toLowerCase())) return;
@@ -2120,6 +2126,15 @@ export function SalonPage() {
             >
               Cancelar
             </button>
+            {editingTableItemId ? (
+              <button
+                type="button"
+                onClick={deleteEditingTable}
+                className="rounded-full border border-red-300 px-4 py-3 text-sm font-medium text-red-700 hover:bg-red-50"
+              >
+                Eliminar mesa
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={submitTableModal}
