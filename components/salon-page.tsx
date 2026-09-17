@@ -422,6 +422,7 @@ export function SalonPage() {
   const [isSavingLayout, setIsSavingLayout] = useState(false);
   const [layoutImpact, setLayoutImpact] = useState<RoomLayoutImpact | null>(null);
   const [pendingLayoutPayload, setPendingLayoutPayload] = useState<LayoutPayload | null>(null);
+  const [pendingTableDeletionSnapshot, setPendingTableDeletionSnapshot] = useState<DesignSnapshot | null>(null);
   const [layoutImpactFocusTableId, setLayoutImpactFocusTableId] = useState("");
   const [impactReassignReservation, setImpactReassignReservation] = useState<Reservation | null>(null);
   const [completingImpactReservationId, setCompletingImpactReservationId] = useState("");
@@ -495,6 +496,10 @@ export function SalonPage() {
       setEditorZones([]);
       setCombinationKeys([]);
       setSelectedItemId("");
+      setLayoutImpact(null);
+      setPendingLayoutPayload(null);
+      setPendingTableDeletionSnapshot(null);
+      setLayoutImpactFocusTableId("");
       resetHistory({ items: [], combinationKeys: [] });
       setHasUnsavedChanges(false);
       setLastSavedAt("");
@@ -507,6 +512,10 @@ export function SalonPage() {
     setEditorItems(fallback.items);
     setCombinationKeys(fallback.combinationKeys);
     setSelectedItemId("");
+    setLayoutImpact(null);
+    setPendingLayoutPayload(null);
+    setPendingTableDeletionSnapshot(null);
+    setLayoutImpactFocusTableId("");
     resetHistory(fallback);
     setHasUnsavedChanges(false);
     setLastSavedAt("");
@@ -1172,6 +1181,7 @@ export function SalonPage() {
 
   async function deleteTableWithImpact(itemId: string) {
     const tableId = editorItems.find((item) => item.id === itemId)?.tableId || itemId;
+    const deletionSnapshot = createSnapshot();
     const nextEditorItems = editorItems.filter((item) => item.id !== itemId);
     deleteItem(itemId);
 
@@ -1184,8 +1194,10 @@ export function SalonPage() {
       if (impact.reservations.length) {
         setPendingLayoutPayload(payload);
         setLayoutImpact(impact);
+        setPendingTableDeletionSnapshot(deletionSnapshot);
         setLayoutImpactFocusTableId(tableId);
       } else {
+        setPendingTableDeletionSnapshot(null);
         setLayoutImpactFocusTableId("");
       }
     } catch (error) {
@@ -1199,6 +1211,27 @@ export function SalonPage() {
     if (!editingTableItemId) return;
     void deleteTableWithImpact(editingTableItemId);
     closeTableModal();
+  }
+
+  function clearLayoutImpact() {
+    setLayoutImpact(null);
+    setPendingLayoutPayload(null);
+    setPendingTableDeletionSnapshot(null);
+    setLayoutImpactFocusTableId("");
+    setImpactReassignReservation(null);
+  }
+
+  function restorePendingTableDeletion() {
+    if (pendingTableDeletionSnapshot) {
+      const lastSnapshot = undoStackRef.current[undoStackRef.current.length - 1];
+      if (lastSnapshot && serializeSnapshot(lastSnapshot) === serializeSnapshot(pendingTableDeletionSnapshot)) {
+        undoStackRef.current.pop();
+      }
+      setEditorItems(pendingTableDeletionSnapshot.items);
+      setCombinationKeys(pendingTableDeletionSnapshot.combinationKeys);
+      setSelectedItemId("");
+    }
+    clearLayoutImpact();
   }
 
   function addZone() {
@@ -1283,6 +1316,7 @@ export function SalonPage() {
     try {
       await saveRoomLayout(selectedRoomId, payload);
       baselineSnapshotRef.current = serializeSnapshot(createSnapshot());
+      setPendingTableDeletionSnapshot(null);
       setHasUnsavedChanges(false);
       setLastSavedAt(
         new Date().toLocaleTimeString("es-AR", {
@@ -2101,14 +2135,14 @@ export function SalonPage() {
         open={Boolean(layoutImpact && pendingLayoutPayload)}
         title="Reservas afectadas por los cambios"
         description="Revisá las reservas vinculadas antes de guardar el plano. Las reservas pendientes o confirmadas que queden incompatibles deben reasignarse."
-        onClose={isSavingLayout ? () => undefined : () => { setLayoutImpact(null); setPendingLayoutPayload(null); setLayoutImpactFocusTableId(""); }}
+        onClose={isSavingLayout ? () => undefined : restorePendingTableDeletion}
         widthClassName="max-w-3xl"
         footer={
           <>
             <button
               type="button"
               disabled={isSavingLayout}
-              onClick={() => { setLayoutImpact(null); setPendingLayoutPayload(null); setLayoutImpactFocusTableId(""); }}
+              onClick={restorePendingTableDeletion}
               className="flex-1 rounded-full border border-brand-line px-4 py-3 text-sm font-medium text-brand-ink disabled:opacity-60"
             >
               Volver al plano
@@ -2118,7 +2152,7 @@ export function SalonPage() {
               disabled={isSavingLayout || Boolean(layoutImpact?.reservations.some((item) => item.requiresReassignment || item.blocksLayout))}
               onClick={() => {
                 if (!pendingLayoutPayload) return;
-                void persistLayout(pendingLayoutPayload).then(() => { setLayoutImpact(null); setPendingLayoutPayload(null); setLayoutImpactFocusTableId(""); }).catch(() => undefined);
+                void persistLayout(pendingLayoutPayload).then(clearLayoutImpact).catch(() => undefined);
               }}
               className="flex-1 rounded-full bg-brand-orange px-4 py-3 text-sm font-medium text-white disabled:opacity-60"
             >
@@ -2175,7 +2209,8 @@ export function SalonPage() {
               <button
                 type="button"
                 onClick={deleteEditingTable}
-                className="rounded-full border border-red-300 px-4 py-3 text-sm font-medium text-red-700 hover:bg-red-50"
+                disabled={isSavingLayout}
+                className="rounded-full bg-red-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
               >
                 Eliminar mesa
               </button>
