@@ -353,6 +353,19 @@ export type CreateReservationForm = {
   eventRooms: Array<{ roomId: string; allocatedCovers: string; usage: "partial" | "full" }>;
 };
 
+export type ReservationTableAvailability = {
+  roomId: string;
+  isBookable: boolean;
+  unavailableReason?: string | null;
+  tables: Array<{
+    id: string;
+    label: string;
+    seats: number;
+    isAvailable: boolean;
+    unavailableReason?: string | null;
+  }>;
+};
+
 export type SpecialService = {
   id: string;
   branchId: string;

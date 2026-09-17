@@ -14,6 +14,7 @@ import type {
   PlatformRestaurantDetail,
   PlatformRestaurantSummary,
   Reservation,
+  ReservationTableAvailability,
   ReservationTableOption,
   RestaurantActivityLog,
   RestaurantStaffUserDetail,
@@ -94,9 +95,10 @@ type WorkspaceContextValue = {
   cancelReservation: (reservationId: string, reason?: string) => Promise<Reservation>;
   deleteReservation: (reservationId: string) => Promise<void>;
   loadReservationTableOptions: (reservationId: string) => Promise<ReservationTableOption[]>;
+  loadReservationTableAvailability: (reservationId: string, roomId: string) => Promise<ReservationTableAvailability>;
   loadAvailableReservationTableOptions: (input: { branchId: string; roomId: string; partySize: number; serviceDate: string; serviceTime: string; preferredZone?: string }) => Promise<ReservationTableOption[]>;
   loadAvailableManualReservationTables: (input: { branchId: string; roomId: string; serviceDate: string; serviceTime: string; preferredZone?: string }) => Promise<ManualReservationTableOption[]>;
-  reassignReservationTables: (reservationId: string, tableIds: string[]) => Promise<void>;
+  reassignReservationTables: (reservationId: string, input: { roomId: string; tableIds: string[] }) => Promise<void>;
   setTableState: (tableId: string, status: ServiceState["status"]) => Promise<void>;
   createCustomer: (input: {
     fullName: string;
@@ -814,6 +816,10 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     return api<ReservationTableOption[]>(`/restaurant/reservations/${reservationId}/table-options`);
   }
 
+  async function loadReservationTableAvailability(reservationId: string, roomId: string) {
+    return api<ReservationTableAvailability>(`/restaurant/reservations/${reservationId}/table-availability?roomId=${encodeURIComponent(roomId)}`);
+  }
+
   async function loadAvailableReservationTableOptions(input: { branchId: string; roomId: string; partySize: number; serviceDate: string; serviceTime: string; preferredZone?: string }) {
     const query = new URLSearchParams({
       branchId: input.branchId,
@@ -837,14 +843,14 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     return api<ManualReservationTableOption[]>(`/restaurant/reservations/available-manual-tables?${query.toString()}`);
   }
 
-  async function reassignReservationTables(reservationId: string, tableIds: string[]) {
+  async function reassignReservationTables(reservationId: string, input: { roomId: string; tableIds: string[] }) {
     try {
       await api(`/restaurant/reservations/${reservationId}/reassign-tables`, {
         method: "POST",
-        body: JSON.stringify({ tableIds })
+        body: JSON.stringify(input)
       });
       await loadOperationalData();
-      setFeedback("Mesa reasignada");
+      setFeedback("Mesas y salon reasignados");
     } catch (error) {
       const message = error instanceof Error ? error.message : "No se pudo reasignar la mesa";
       setFeedback(message);
@@ -1112,6 +1118,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       cancelReservation,
       deleteReservation,
       loadReservationTableOptions,
+      loadReservationTableAvailability,
       loadAvailableReservationTableOptions,
       loadAvailableManualReservationTables,
       reassignReservationTables,
