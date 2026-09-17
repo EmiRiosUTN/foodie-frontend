@@ -17,7 +17,7 @@ const restaurantNavigationItems = [
   { href: "/clientes", label: "Clientes" }
 ];
 const receptionNavigationItems = restaurantNavigationItems.filter((item) => ["/panel", "/chat", "/salon", "/reservas"].includes(item.href));
-const eventsNavigationItems = restaurantNavigationItems.filter((item) => item.href === "/chat" || item.href === "/reservas");
+const eventsNavigationItems = receptionNavigationItems;
 
 const platformNavigationItems = [
   { href: "/admin", label: "Restaurantes" },
@@ -88,7 +88,7 @@ export function WorkspaceShell({
   const isReception = currentUser?.scope === "restaurant" && currentUser.role === "host";
   const isEvents = currentUser?.scope === "restaurant" && currentUser.role === "events";
   const chatNavigationItems =
-    currentUser?.scope === "restaurant" && !isReception
+    currentUser?.scope === "restaurant" && !isReception && !isEvents
       ? getEnabledChatModules(chatSession.user).map((module) => ({
           href: module.href,
           label: module.label

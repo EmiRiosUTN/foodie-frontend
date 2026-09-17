@@ -121,7 +121,7 @@ export function ReservasPage() {
   const zonePills = roomDetail?.zones || [];
   const selectedBranch = bootstrap?.branches.find((branch) => branch.id === selectedBranchId);
   const isEventsUser = currentUser?.role === "events";
-  const canOperateReservations = !isEventsUser;
+  const canOperateReservations = true;
   const canDeleteReservations = ["restaurant_owner", "restaurant_manager"].includes(currentUser?.role || "");
   const canCancelReservations = canDeleteReservations;
   const canCreateEvents = ["restaurant_owner", "restaurant_manager", "events"].includes(currentUser?.role || "");
@@ -398,7 +398,7 @@ export function ReservasPage() {
               <h2 className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-brand-ink">Reservas del turno</h2>
             </div>
             <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row">
-              {!isEventsUser ? <button
+              <button
                 type="button"
                 onClick={() => void downloadDailyBackup()}
                 disabled={backupLoading}
@@ -406,7 +406,7 @@ export function ReservasPage() {
               >
                 <Download className="h-4 w-4" />
                 {backupLoading ? "Preparando PDF..." : "Descargar PDF"}
-              </button> : null}
+              </button>
               <button
                 type="button"
                 onClick={openCreateReservation}
@@ -594,7 +594,7 @@ export function ReservasPage() {
           </div>
         )}
       </section>
-      {!isEventsUser ? <div className="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-3 pb-[env(safe-area-inset-bottom)] md:hidden">
+      <div className="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-3 pb-[env(safe-area-inset-bottom)] md:hidden">
         {backupError ? <p className="max-w-[min(280px,calc(100vw-2rem))] rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 shadow-lg" role="alert">{backupError}</p> : null}
         <button
           type="button"
@@ -606,7 +606,7 @@ export function ReservasPage() {
           <Download className="h-5 w-5" />
           {backupLoading ? "Preparando..." : "PDF"}
         </button>
-      </div> : null}
+      </div>
       </>
       ) : null}
 

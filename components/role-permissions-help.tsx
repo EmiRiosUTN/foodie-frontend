@@ -37,7 +37,7 @@ export const restaurantRolePermissions: Record<RestaurantUserRole, RolePermissio
   },
   events: {
     label: "Eventos",
-    description: "Ve conversaciones y reservas de evento. Puede crear reservas de evento, sin acceso a reservas estándar ni acciones operativas."
+    description: "Tiene el mismo acceso operativo que Recepción. Puede ver y gestionar reservas, pero al crear una reserva siempre crea un evento."
   }
 };
 

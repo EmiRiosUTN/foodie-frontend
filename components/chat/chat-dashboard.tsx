@@ -26,7 +26,6 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toaster, toast } from "sonner";
 import { ConfirmDialog } from "../confirm-dialog";
-import { useWorkspace } from "../workspace-provider";
 import { useChatAuth } from "./chat-auth";
 import { useChat } from "./chat-context";
 import { ChatExportModal } from "./chat-export-modal";
@@ -115,13 +114,8 @@ function getAvatarText(chat: Chat) {
     .toUpperCase();
 }
 
-function isEventChat(chat: Chat) {
-  return chat.tags?.some((tag) => tag.trim().toLocaleLowerCase("es-AR") === "evento") ?? false;
-}
-
 export function ChatDashboard() {
   const { user } = useChatAuth();
-  const { currentUser } = useWorkspace();
   const {
     chats,
     activeChat,
@@ -346,9 +340,7 @@ export function ChatDashboard() {
     });
   }, [chats]);
 
-  const isEventsUser = currentUser?.role === "events";
-
-  const scopedChats = useMemo(() => (isEventsUser ? sortedChats.filter(isEventChat) : sortedChats), [isEventsUser, sortedChats]);
+  const scopedChats = sortedChats;
 
   const availableTags = useMemo(() => {
     const tagMap = new Map<string, string>();
@@ -374,14 +366,7 @@ export function ChatDashboard() {
     return scopedChats.filter((chat) => chat.tags?.some((tagName) => normalizeChatTagName(tagName) === normalizedSelectedTag));
   }, [scopedChats, selectedTagFilter]);
 
-  const displayChats = useMemo(() => {
-    if (isSearchActive) return isEventsUser ? searchResults.filter(isEventChat) : searchResults;
-    return filteredChats;
-  }, [filteredChats, isEventsUser, isSearchActive, searchResults]);
-
-  useEffect(() => {
-    if (isEventsUser && activeChat && !isEventChat(activeChat)) setActiveChat(null);
-  }, [activeChat, isEventsUser, setActiveChat]);
+  const displayChats = useMemo(() => isSearchActive ? searchResults : filteredChats, [filteredChats, isSearchActive, searchResults]);
 
   const messageGroups = useMemo(() => groupMessagesByDate(messages), [messages]);
 
@@ -441,7 +426,6 @@ export function ChatDashboard() {
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-orange">Inbox operativo</p>
                 <h2 className="mt-1 text-xl font-semibold text-brand-ink">Conversaciones</h2>
-                {isEventsUser ? <p className="mt-1 text-xs font-medium text-neutral-500">Sólo conversaciones con etiqueta Evento</p> : null}
               </div>
               <div className="flex items-center gap-2">
                 <button type="button" onClick={() => setIsExportModalOpen(true)} className="rounded-full border border-[#E6D8CB] bg-[#FFF9F4] p-2 text-neutral-500 transition hover:border-[#D9C1AF] hover:bg-white hover:text-brand-ink" title="Exportar chats">

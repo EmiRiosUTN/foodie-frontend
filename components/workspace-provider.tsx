@@ -369,19 +369,11 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!token || !currentUser) return;
 
-    if (currentUser.scope === "restaurant" && currentUser.role === "host") {
+    if (currentUser.scope === "restaurant" && ["host", "events"].includes(currentUser.role)) {
       const receptionPaths = ["/panel", "/chat", "/salon", "/reservas"];
       const hasReceptionAccess = receptionPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
       if (!hasReceptionAccess) {
         router.replace("/panel");
-        return;
-      }
-    }
-
-    if (currentUser.scope === "restaurant" && currentUser.role === "events") {
-      const hasEventsAccess = pathname === "/chat" || pathname.startsWith("/chat/") || pathname === "/reservas" || pathname.startsWith("/reservas/");
-      if (!hasEventsAccess) {
-        router.replace("/chat");
         return;
       }
     }
