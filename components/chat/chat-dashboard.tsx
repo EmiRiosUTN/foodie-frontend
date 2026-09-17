@@ -26,6 +26,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toaster, toast } from "sonner";
 import { ConfirmDialog } from "../confirm-dialog";
+import { useWorkspace } from "../workspace-provider";
 import { useChatAuth } from "./chat-auth";
 import { useChat } from "./chat-context";
 import { ChatExportModal } from "./chat-export-modal";
@@ -114,8 +115,13 @@ function getAvatarText(chat: Chat) {
     .toUpperCase();
 }
 
+function isEventChat(chat: Chat) {
+  return chat.tags?.some((tag) => normalizeChatTagName(tag) === "evento") ?? false;
+}
+
 export function ChatDashboard() {
   const { user } = useChatAuth();
+  const { currentUser } = useWorkspace();
   const {
     chats,
     activeChat,
@@ -340,7 +346,8 @@ export function ChatDashboard() {
     });
   }, [chats]);
 
-  const scopedChats = sortedChats;
+  const isEventsUser = currentUser?.role === "events";
+  const scopedChats = useMemo(() => isEventsUser ? sortedChats.filter(isEventChat) : sortedChats, [isEventsUser, sortedChats]);
 
   const availableTags = useMemo(() => {
     const tagMap = new Map<string, string>();
@@ -360,13 +367,26 @@ export function ChatDashboard() {
     }));
   }, [scopedChats, tagService.tags]);
 
+  useEffect(() => {
+    if (!isEventsUser) return;
+    const eventTag = availableTags.find((tag) => normalizeChatTagName(tag.name) === "evento");
+    setSelectedTagFilter(eventTag?.name || "Evento");
+  }, [availableTags, isEventsUser]);
+
   const filteredChats = useMemo(() => {
     if (!selectedTagFilter) return scopedChats;
     const normalizedSelectedTag = normalizeChatTagName(selectedTagFilter);
     return scopedChats.filter((chat) => chat.tags?.some((tagName) => normalizeChatTagName(tagName) === normalizedSelectedTag));
   }, [scopedChats, selectedTagFilter]);
 
-  const displayChats = useMemo(() => isSearchActive ? searchResults : filteredChats, [filteredChats, isSearchActive, searchResults]);
+  const displayChats = useMemo(
+    () => isSearchActive ? (isEventsUser ? searchResults.filter(isEventChat) : searchResults) : filteredChats,
+    [filteredChats, isEventsUser, isSearchActive, searchResults]
+  );
+
+  useEffect(() => {
+    if (isEventsUser && activeChat && !isEventChat(activeChat)) setActiveChat(null);
+  }, [activeChat, isEventsUser, setActiveChat]);
 
   const messageGroups = useMemo(() => groupMessagesByDate(messages), [messages]);
 
