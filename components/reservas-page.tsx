@@ -120,6 +120,8 @@ export function ReservasPage() {
   const [mobileActionReservation, setMobileActionReservation] = useState<Reservation | null>(null);
   const zonePills = roomDetail?.zones || [];
   const selectedBranch = bootstrap?.branches.find((branch) => branch.id === selectedBranchId);
+  const selectedSpecialService = specialServices.find((service) => service.id === selectedSpecialServiceId) || null;
+  const specialServicesForSelectedTurn = specialServices.filter((service) => (Number(service.startTime.slice(0, 2)) < 17 ? "mediodia" : "noche") === selectedTurn);
   const isEventsUser = currentUser?.role === "events";
   const canOperateReservations = true;
   const canDeleteReservations = ["restaurant_owner", "restaurant_manager"].includes(currentUser?.role || "");
@@ -450,26 +452,33 @@ export function ReservasPage() {
               </span>
               <FoodieSelect
                 value={selectedTurn}
-                onChange={(event) => setSelectedTurn(event.target.value as "mediodia" | "noche")}
+                onChange={(event) => {
+                  const nextTurn = event.target.value as "mediodia" | "noche";
+                  setSelectedTurn(nextTurn);
+                  if (selectedSpecialService && (Number(selectedSpecialService.startTime.slice(0, 2)) < 17 ? "mediodia" : "noche") !== nextTurn) {
+                    setSelectedSpecialServiceId("");
+                  }
+                }}
                 className="font-medium"
               >
                 <option value="mediodia">Mediodia</option>
                 <option value="noche">Noche</option>
               </FoodieSelect>
             </label>
-            {specialServices.length ? (
+            {specialServicesForSelectedTurn.length ? (
               <label className="space-y-2 text-sm text-brand-ink">
                 <span className="font-medium">Servicio especial</span>
                 <FoodieSelect
                   value={selectedSpecialServiceId}
                   onChange={(event) => {
-                    const service = specialServices.find((item) => item.id === event.target.value);
+                    const service = specialServicesForSelectedTurn.find((item) => item.id === event.target.value);
                     setSelectedSpecialServiceId(event.target.value);
                     if (service) setSelectedTurn(Number(service.startTime.slice(0, 2)) < 17 ? "mediodia" : "noche");
                   }}
                   className="font-medium"
                 >
-                  {specialServices.map((service) => (
+                  <option value="">Sin servicio especial</option>
+                  {specialServicesForSelectedTurn.map((service) => (
                     <option key={service.id} value={service.id}>
                       {service.label} · {service.startTime}-{service.endTime}
                     </option>

@@ -190,6 +190,7 @@ export function PanelPage() {
   const canCancelReservations = ["restaurant_owner", "restaurant_manager"].includes(currentUser?.role || "");
   const canOperateDetailReservation = Boolean(detailReservation && !isSelectedRoomBlocked && ["pending", "confirmed", "seated"].includes(detailReservation.status));
   const selectedSpecialService = specialServices.find((service) => service.id === selectedSpecialServiceId) || null;
+  const specialServicesForSelectedTurn = specialServices.filter((service) => (Number(service.startTime.slice(0, 2)) < 17 ? "mediodia" : "noche") === selectedTurn);
   const bookingTables = roomDetail?.tables.filter((table) => bookingTableIds.includes(table.id)) || [];
   const bookingCapacity = totalTableCapacity(bookingTables);
 
@@ -274,10 +275,11 @@ export function PanelPage() {
             </FoodieSelect>
           </div>
 
-          {specialServices.length ? <div className="min-w-[220px] flex-1">
+          {specialServicesForSelectedTurn.length ? <div className="min-w-[220px] flex-1">
             <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-neutral-400">Servicio especial</label>
-            <FoodieSelect value={selectedSpecialServiceId} onChange={(event) => { const service = specialServices.find((item) => item.id === event.target.value); setSelectedSpecialServiceId(event.target.value); if (service) setSelectedTurn(Number(service.startTime.slice(0, 2)) < 17 ? "mediodia" : "noche"); setBookingTableIds([]); }} className="font-medium">
-              {specialServices.map((service) => <option key={service.id} value={service.id}>{service.label} · {service.startTime}-{service.endTime}</option>)}
+            <FoodieSelect value={selectedSpecialServiceId} onChange={(event) => { const service = specialServicesForSelectedTurn.find((item) => item.id === event.target.value); setSelectedSpecialServiceId(event.target.value); if (service) setSelectedTurn(Number(service.startTime.slice(0, 2)) < 17 ? "mediodia" : "noche"); setBookingTableIds([]); }} className="font-medium">
+              <option value="">Sin servicio especial</option>
+              {specialServicesForSelectedTurn.map((service) => <option key={service.id} value={service.id}>{service.label} · {service.startTime}-{service.endTime}</option>)}
             </FoodieSelect>
           </div> : null}
           <div className="min-w-[180px] flex-1">
@@ -315,7 +317,14 @@ export function PanelPage() {
             <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-neutral-400">Turno</label>
             <FoodieSelect
               value={selectedTurn}
-              onChange={(event) => { setSelectedTurn(event.target.value as "mediodia" | "noche"); setBookingTableIds([]); }}
+              onChange={(event) => {
+                const nextTurn = event.target.value as "mediodia" | "noche";
+                setSelectedTurn(nextTurn);
+                if (selectedSpecialService && (Number(selectedSpecialService.startTime.slice(0, 2)) < 17 ? "mediodia" : "noche") !== nextTurn) {
+                  setSelectedSpecialServiceId("");
+                }
+                setBookingTableIds([]);
+              }}
               className="font-medium"
             >
               <option value="mediodia">Mediodia</option>
