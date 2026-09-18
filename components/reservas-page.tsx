@@ -68,6 +68,7 @@ export function ReservasPage() {
     setReservationForm,
     createReservation,
     moveReservation,
+    rescheduleReservation,
     cancelReservation,
     deleteReservation,
     bootstrap,
@@ -115,6 +116,10 @@ export function ReservasPage() {
   const [cancelReason, setCancelReason] = useState("");
   const [cancelError, setCancelError] = useState("");
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [rescheduleTarget, setRescheduleTarget] = useState<Reservation | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleLoading, setRescheduleLoading] = useState(false);
+  const [rescheduleError, setRescheduleError] = useState("");
   const [backupLoading, setBackupLoading] = useState(false);
   const [backupError, setBackupError] = useState("");
   const [mobileActionReservation, setMobileActionReservation] = useState<Reservation | null>(null);
@@ -125,7 +130,7 @@ export function ReservasPage() {
   const isEventsUser = currentUser?.role === "events";
   const canOperateReservations = true;
   const canDeleteReservations = ["restaurant_owner", "restaurant_manager"].includes(currentUser?.role || "");
-  const canCancelReservations = canDeleteReservations;
+  const canCancelReservations = canDeleteReservations || isEventsUser;
   const canCreateEvents = ["restaurant_owner", "restaurant_manager", "events"].includes(currentUser?.role || "");
   const eventAllocatedCovers = reservationForm.eventRooms.reduce((total, room) => total + (Number(room.allocatedCovers) || 0), 0);
   const eventTotalCovers = Number(reservationForm.partySize) || 0;
@@ -319,6 +324,22 @@ export function ReservasPage() {
       setCancelError(error instanceof Error ? error.message : "No se pudo cancelar la reserva.");
     } finally {
       setCancelLoading(false);
+    }
+  };
+
+  const handleRescheduleReservation = async () => {
+    if (!rescheduleTarget || !rescheduleDate || rescheduleLoading) return;
+    setRescheduleLoading(true);
+    setRescheduleError("");
+    try {
+      const updated = await rescheduleReservation(rescheduleTarget.id, rescheduleDate);
+      setHistoryRows((current) => current.map((reservation) => reservation.id === updated.id ? updated : reservation));
+      setRescheduleTarget(null);
+      setRescheduleDate("");
+    } catch (error) {
+      setRescheduleError(error instanceof Error ? error.message : "No se pudo cambiar la fecha de la reserva.");
+    } finally {
+      setRescheduleLoading(false);
     }
   };
 
@@ -542,6 +563,11 @@ export function ReservasPage() {
                           className="rounded-full border border-brand-orange px-3 py-2 text-xs font-medium text-brand-orange"
                         >
                           Cambiar mesa
+                        </button>
+                      ) : null}
+                      {["pending", "confirmed"].includes(reservation.status) ? (
+                        <button type="button" onClick={() => { setRescheduleError(""); setRescheduleDate(reservation.serviceDate.slice(0, 10)); setRescheduleTarget(reservation); }} className="rounded-full border border-brand-orange px-3 py-2 text-xs font-medium text-brand-orange">
+                          Cambiar fecha
                         </button>
                       ) : null}
                       {canCancelReservations && ["pending", "confirmed", "seated"].includes(reservation.status) ? (
@@ -769,10 +795,26 @@ export function ReservasPage() {
       >
         <div className="grid gap-3">
           {canOperateReservations && ["pending", "confirmed"].includes(mobileActionReservation?.status || "") ? <button type="button" onClick={() => { setReassignReservation(mobileActionReservation); setMobileActionReservation(null); }} className="rounded-full border border-brand-orange px-4 py-3 text-sm font-semibold text-brand-orange">Cambiar mesas</button> : null}
+          {mobileActionReservation && ["pending", "confirmed"].includes(mobileActionReservation.status) ? <button type="button" onClick={() => { setRescheduleError(""); setRescheduleDate(mobileActionReservation.serviceDate.slice(0, 10)); setRescheduleTarget(mobileActionReservation); setMobileActionReservation(null); }} className="rounded-full border border-brand-orange px-4 py-3 text-sm font-semibold text-brand-orange">Cambiar fecha</button> : null}
           {canOperateReservations && canCancelReservations && mobileActionReservation && ["pending", "confirmed", "seated"].includes(mobileActionReservation.status) ? <button type="button" onClick={() => { setCancelError(""); setCancelReason(""); setCancelTarget(mobileActionReservation); setMobileActionReservation(null); }} className="rounded-full border border-red-200 px-4 py-3 text-sm font-semibold text-red-700">Cancelar reserva</button> : null}
           {canOperateReservations && canDeleteReservations && mobileActionReservation?.status === "cancelled" ? <button type="button" onClick={() => { setDeleteError(""); setDeleteTarget(mobileActionReservation); setMobileActionReservation(null); }} className="rounded-full border border-red-200 px-4 py-3 text-sm font-semibold text-red-700">Eliminar reserva</button> : null}
           {!canOperateReservations || !(["pending", "confirmed"].includes(mobileActionReservation?.status || "") || (canCancelReservations && ["pending", "confirmed", "seated"].includes(mobileActionReservation?.status || "")) || (canDeleteReservations && mobileActionReservation?.status === "cancelled")) ? <p className="text-sm text-white/70">No hay acciones adicionales para esta reserva.</p> : null}
         </div>
+      </AppModal>
+
+      <AppModal
+        open={Boolean(rescheduleTarget)}
+        title="Cambiar fecha de reserva"
+        description={rescheduleTarget ? rescheduleTarget.fullName + " · " + rescheduleTarget.code : ""}
+        onClose={() => { if (!rescheduleLoading) { setRescheduleError(""); setRescheduleTarget(null); } }}
+        widthClassName="max-w-md"
+        footer={<><button type="button" disabled={rescheduleLoading} onClick={() => setRescheduleTarget(null)} className="flex-1 rounded-full border border-brand-line px-4 py-3 text-sm font-medium text-brand-ink">Cancelar</button><button type="button" disabled={rescheduleLoading || !rescheduleDate} onClick={() => void handleRescheduleReservation()} className="flex-1 rounded-full bg-brand-orange px-4 py-3 text-sm font-medium text-white">{rescheduleLoading ? "Guardando..." : "Confirmar fecha"}</button></>}
+      >
+        <label className="block space-y-2 text-sm text-white">
+          <span className="font-medium">Nueva fecha</span>
+          <input type="date" value={rescheduleDate} min={new Date().toISOString().slice(0, 10)} onChange={(event) => setRescheduleDate(event.target.value)} className="w-full rounded-xl border border-white/15 bg-white px-3 py-3 text-brand-ink" />
+        </label>
+        {rescheduleError ? <p className="mt-4 rounded-2xl border border-red-300/40 bg-red-500/15 px-4 py-3 text-sm text-red-100">{rescheduleError}</p> : null}
       </AppModal>
 
       <ConfirmDialog

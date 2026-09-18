@@ -94,6 +94,7 @@ type WorkspaceContextValue = {
   loadRoomLayoutImpact: (roomId: string, payload: unknown, focusTableId?: string) => Promise<RoomLayoutImpact>;
   createReservation: () => Promise<void>;
   moveReservation: (reservationId: string, action: "check-in" | "release") => Promise<void>;
+  rescheduleReservation: (reservationId: string, serviceDate: string) => Promise<Reservation>;
   cancelReservation: (reservationId: string, reason?: string) => Promise<Reservation>;
   deleteReservation: (reservationId: string) => Promise<void>;
   loadReservationTableOptions: (reservationId: string) => Promise<ReservationTableOption[]>;
@@ -808,6 +809,22 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  async function rescheduleReservation(reservationId: string, serviceDate: string) {
+    try {
+      const updated = await api<Reservation>("/restaurant/reservations/" + reservationId + "/reschedule", {
+        method: "POST",
+        body: JSON.stringify({ serviceDate })
+      });
+      await loadOperationalData();
+      setFeedback("Fecha de reserva actualizada");
+      return updated;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudo cambiar la fecha de la reserva";
+      setFeedback(message);
+      throw new Error(message);
+    }
+  }
+
   async function deleteReservation(reservationId: string) {
     try {
       await api(`/restaurant/reservations/${reservationId}`, { method: "DELETE" });
@@ -1126,6 +1143,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       loadRoomLayoutImpact,
       createReservation,
       moveReservation,
+      rescheduleReservation,
       cancelReservation,
       deleteReservation,
       loadReservationTableOptions,
