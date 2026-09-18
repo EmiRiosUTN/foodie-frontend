@@ -43,7 +43,10 @@ function ProductForm({ value, setValue, save, saving }: { value: Product; setVal
       const response = await fetch(`${API_URL}/restaurant/gift-cards/products/preview`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify(value) });
       if (!response.ok) throw new Error((await response.json().catch(() => null))?.message || "No se pudo generar la vista previa");
       const result = await response.json() as { image: string };
-      if (previewWindow) previewWindow.location.href = result.image;
+      if (previewWindow) {
+        previewWindow.document.write(`<!doctype html><html lang="es"><head><title>Muestra Gift Card</title><style>body{margin:0;background:#f3f3f3;font-family:Arial,sans-serif}.actions{position:sticky;top:0;padding:12px;text-align:center;background:#fff}.actions button{border:0;border-radius:999px;background:#f45b19;color:#fff;padding:10px 18px;font-weight:700;cursor:pointer}img{display:block;width:min(100%,1080px);margin:0 auto}@media print{.actions{display:none}body{background:#fff}}</style></head><body><div class="actions"><button onclick="window.print()">Imprimir muestra</button></div><img src="${result.image}" alt="Muestra de Gift Card" /></body></html>`);
+        previewWindow.document.close();
+      }
       else window.alert("El navegador bloqueó la nueva pestaña. Permití las ventanas emergentes para ver la muestra.");
     } catch (error) {
       previewWindow?.close();
