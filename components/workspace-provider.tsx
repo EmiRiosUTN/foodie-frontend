@@ -405,6 +405,13 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   }, [token, currentUser, selectedBranchId, selectedDate]);
 
   useEffect(() => {
+    const selectedService = specialServices.find((service) => service.id === selectedSpecialServiceId);
+    if (!selectedService) return;
+
+    setSelectedTurn(Number(selectedService.startTime.slice(0, 2)) < 17 ? "mediodia" : "noche");
+  }, [specialServices, selectedSpecialServiceId]);
+
+  useEffect(() => {
     if (!token || currentUser?.scope !== "restaurant" || !selectedBranchId) return;
     loadOperationalData().catch((error) => setFeedback(error.message));
     loadRoomBlocks().catch((error) => setFeedback(error.message));
