@@ -24,11 +24,26 @@ export interface Message {
   content: string;
   timestamp: string;
   status: "sent" | "delivered" | "read";
+  /**
+   * Pupuia keeps manually sent outbound messages under `sender: "bot"` for
+   * transport compatibility, and identifies their actual origin separately.
+   */
+  sentBy?: string | null;
+  outboundOrigin?: string | null;
   mediaUrl?: string | null;
   mediaType?: "image" | "video" | "audio" | "document" | null;
   fileName?: string | null;
   mimeType?: string | null;
   _id?: string;
+}
+
+export function getMessageAuthorLabel(message: Message): "Bot" | "Manual" | null {
+  if (message.sender !== "bot") return null;
+
+  const sentBy = message.sentBy?.trim().toLowerCase();
+  const outboundOrigin = message.outboundOrigin?.trim().toLowerCase();
+
+  return sentBy === "manual" || outboundOrigin === "human" || outboundOrigin === "manual" ? "Manual" : "Bot";
 }
 
 export interface ChatWithMessages {

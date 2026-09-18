@@ -29,7 +29,7 @@ import { ConfirmDialog } from "../confirm-dialog";
 import { useChatAuth } from "./chat-auth";
 import { useChat } from "./chat-context";
 import { ChatExportModal } from "./chat-export-modal";
-import { chatService, type Chat, type Message } from "./chat-service";
+import { chatService, getMessageAuthorLabel, type Chat, type Message } from "./chat-service";
 import { ATTENTION_TAG_NAME, isAttentionTag, normalizeChatTagName, useChatTagService } from "./chat-tag-service";
 import { ChatTagBadge } from "./chat-tag-badge";
 import { ChatTagFilter } from "./chat-tag-filter";
@@ -656,6 +656,7 @@ export function ChatDashboard() {
                           const mediaProxyUrl = messageId ? chatService.getMediaUrl(messageId) : "";
                           const token = typeof window !== "undefined" ? window.localStorage.getItem("auth_token") : null;
                           const mediaUrlWithAuth = mediaProxyUrl && token ? `${mediaProxyUrl}?token=${token}` : mediaProxyUrl;
+                          const messageAuthorLabel = getMessageAuthorLabel(message);
 
                           return (
                             <div key={renderKey} className={`flex ${message.sender === "bot" ? "justify-end" : "justify-start"}`}>
@@ -724,7 +725,7 @@ export function ChatDashboard() {
                                 <div className="mt-2 flex items-center justify-between gap-4">
                                   <span className={`text-xs ${message.sender === "user" ? "text-neutral-400" : "text-white/75"}`}>
                                     {formatTime(message.timestamp)}
-                                    {message.sender === "bot" ? " · Bot" : ""}
+                                    {messageAuthorLabel ? ` · ${messageAuthorLabel}` : ""}
                                   </span>
                                   <button
                                     type="button"
